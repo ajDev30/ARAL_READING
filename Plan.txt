@@ -1,0 +1,51 @@
+# ARAL READING PROGRAM - SYSTEM DEVELOPMENT PLAN
+
+## PHASE 1: Review of Existing System (Moodle Plugin)
+- The current implementation (`/home/andrew/aral`) successfully integrates Azure Speech Recognition (ASR).
+- It handles complex data structures like `philiri_json` (markup) and `evaluation_data` (Azure tooltips, word-level timing).
+- It uses standard formulas for Reading Accuracy, Comprehension, and Reading Speed.
+- GOAL: Extract this core ASR/Evaluation logic and decouple it from Moodle, moving it into the new standalone LMS.
+
+## PHASE 2 & 4: Understanding Phil-IRI Standard Procedure
+Based on the provided videos and slides:
+1. **Initial Screening (GST):** Filters students who need further assessment.
+2. **Graded Passages (Pre-assessment):** Determines specific reading level (Independent, Instructional, Frustration) using Oral and Silent reading.
+3. **Intervention:** Small-group instruction for those who fell into Instructional or Frustration levels.
+4. **Post-test:** Re-evaluation to see if the student has improved to the "Independent" level.
+
+## PHASE 3: System Workflow & Architecture for ARAL_READING
+
+### 3.1. Pre-Assessment (Determining Oral Reading Level)
+- **Teacher Action:** Creates a reading passage and a comprehension test.
+- **Student Action:** Takes the Pre-assessment.
+  - UI includes a timer and voice recorder.
+  - ASR (Azure) listens and automatically generates Phil-IRI markup and tooltips.
+- **System Calculation:**
+  - Reading Accuracy = ((Words - Miscues) / Words) * 100
+  - Comprehension = (Correct Answers / Questions) * 100
+  - Reading Speed = (Words Read / Time in Seconds) * 60
+  - *Reading Profile Thresholds:*
+    - Independent: WR 97%-100%, Comp 80%-100%
+    - Instructional: WR 90%-96%, Comp 59%-79% *(Note: Fixed from prompt typo)*
+    - Frustration: WR 89% and below, Comp 58% and below
+- **Database:** Results (audio, Azure JSON, answers, scores) are saved.
+
+### 3.2. Teacher Pre-Assessment Panel & Masterlist
+- **Evaluation Panel:** Teacher can review the student's submission. They can listen to the voice record, see the Azure markup, and manually OVERRIDE miscues if the ASR made a mistake.
+- **Masterlist:** A table showing all students, their profiles (name, age), and their calculated Oral Reading Level.
+- **Grouping:** Teacher uses the Masterlist to group students into Intervention Categories (e.g., "Grade 7 - Instructional", "Grade 7 - Frustration").
+
+### 3.3. Intervention Phase (Pre-test -> Activity -> Post-test)
+- **Teacher Action:** Uploads specific materials (Passages + Comprehension tests) and assigns them to a Category (e.g., Grade 7 Instructional). Tags them as Pre-test, Activity, or Post-test.
+- **Student Action:** Once grouped, the student logs in and only sees the materials assigned to their category. They go through the sequence: Pre-test -> Activities -> Post-test.
+
+### 3.4. Progress Dashboard & Recommendations
+- **Teacher View:** Dashboard tracks student scores across the Pre-test, Activities, and Post-test. 
+- **System Recommendation Logic:** 
+  - *Graduate:* If Post-test reaches "Independent".
+  - *Remedial:* If Post-test remains "Instructional" or "Frustration".
+  - *No Progress:* If scores degrade or remain stagnant.
+- **Student View:** Students have their own simplified dashboard to see their scores, category, and progress.
+
+## PHASE 5: Prototype (Figma)
+- Awaiting user confirmation to proceed with designing the UI/UX wireframes and workflow layouts for both Teacher and Student sides.

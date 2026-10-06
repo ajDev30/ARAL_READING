@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile.php
+    ports:
+      - "80:80"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=aral_reading_db
+      - DB_USER=andrew
+      - DB_PASS=1234
+    depends_on:
+      - db
+    volumes:
+      - ./uploads:/var/www/html/uploads
+
+  speech-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    ports:
+      - "8011:8011"
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY:-}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: aral_reading_db
+      MYSQL_USER: andrew
+      MYSQL_PASSWORD: 1234
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+volumes:
+  db_data:

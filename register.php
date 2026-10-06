@@ -5,6 +5,11 @@ require_once 'config.php';
 $error = '';
 $success = '';
 
+$stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'available_sections'");
+$row = $stmt->fetch();
+$available_sections = $row ? array_filter(array_map('trim', explode(',', $row['setting_value']))) : [];
+
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Sanitize and get inputs
     $fname = trim($_POST['fname']);
@@ -161,8 +166,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <!-- Row 4 -->
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Section</label>
-                    <input type="text" name="section" required 
-                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition">
+                    <?php if (empty($available_sections)): ?>
+                        <input type="text" name="section" required placeholder="Enter Section"
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition">
+                    <?php else: ?>
+                        <select name="section" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition">
+                            <option value="">Select Section</option>
+                            <?php foreach ($available_sections as $sec): ?>
+                                <option value="<?php echo htmlspecialchars($sec); ?>"><?php echo htmlspecialchars($sec); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>

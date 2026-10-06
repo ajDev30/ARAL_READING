@@ -109,14 +109,16 @@ async def get_realtime_token(request: Request):
             
         import re
         keywords = list(set([w for w in re.findall(r"[A-Za-z][A-Za-z'’-]*", passage.lower()) if len(w) >= 4]))
+        keyword_prompt = " ".join(keywords)[:200]
             
+        user_prompt = "Student is reading a supplied passage. Use passage context only to improve recognition of names, vocabulary, and word boundaries. Transcribe ONLY audible speech. Do not autocorrect to the passage, invent or delete words, reorder, paraphrase, or summarize. Preserve repeats, restarts, substitutions, reversals, transpositions, and self-corrections; keep audible attempts separate. Pay attention to short function words (a, an, the, to, in, of, and, with), but never insert one unless audible. Prefer audio over passage context. Vocabulary words: " + keyword_prompt
         session_payload = {
             "type": "transcription",
             "audio": {
                 "input": {
                     "transcription": {
                         "model": transcription_model,
-                        "prompt": passage
+                        "prompt": user_prompt
                     }
                 }
             }

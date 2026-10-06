@@ -726,7 +726,7 @@ async function startRecording() {
 
   running = true;
   els.startBtn.disabled = true; els.stopBtn.disabled = true;
-  els.resetBtn.disabled = true;
+  els.resetBtn.disabled = false;
   els.editStoryBtn.disabled = true;
   els.locale.disabled = true;
   setRetryUi({ visible: false, enabled: false });
@@ -804,7 +804,7 @@ async function stopRecording() {
   // races and late AudioWorklet chunks reaching a closing worker.
   els.startBtn.disabled = true;
   els.stopBtn.disabled = true;
-  els.resetBtn.disabled = true;
+  els.resetBtn.disabled = false;
   els.editStoryBtn.disabled = true;
   els.locale.disabled = true;
   stopTimer();
@@ -950,7 +950,7 @@ async function retryRecording() {
     setRetryUi({ visible: true, enabled: false });
     els.startBtn.disabled = true;
     els.stopBtn.disabled = true;
-    els.resetBtn.disabled = true;
+    els.resetBtn.disabled = false;
     els.editStoryBtn.disabled = true;
     els.locale.disabled = true;
     stopTimer();
@@ -1168,8 +1168,11 @@ function renderTranscriptMarkup(assessment, data) {
         insertAt = Math.min(insertAt, Number(spokenIndex));
       }
     }
-    if (!omissionAtSpoken.has(insertAt)) omissionAtSpoken.set(insertAt, []);
-    omissionAtSpoken.get(insertAt).push(op);
+    // Do not append trailing omissions (unread text) to the transcript UI
+    if (insertAt < spokenWords.length) {
+      if (!omissionAtSpoken.has(insertAt)) omissionAtSpoken.set(insertAt, []);
+      omissionAtSpoken.get(insertAt).push(op);
+    }
   }
 
   transcriptTips = [];

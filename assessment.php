@@ -161,8 +161,8 @@ if(!$gradeNum) $gradeNum = 7;
         window.STUDENT_GRADE = <?php echo $gradeNum; ?>;
     </script>
     <script src="v536/public/assessment-core.js?v=2.0.10"></script>
-    <script src="v536/public/app.js?v=2.0.15"></script>
-    <script src="v536/public/cascading-flow.js?v=2.0.12"></script>
+    <script src="v536/public/app.js?v=2.0.22"></script>
+    <script src="v536/public/cascading-flow.js?v=2.0.22"></script>
 
     <script>
         window.toggleSidebar = function() {

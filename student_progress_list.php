@@ -36,8 +36,58 @@ $students = $stmt->fetchAll();
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .keep-colors { color-adjust: exact; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+        .sidebar { background-color: #1a365d; }
+        .card { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #E2E8F0; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+            <?php $is_dark = isset($_COOKIE['theme']) && $_COOKIE['theme'] === 'dark'; ?>
+        <?php if($is_dark): ?>
+        /* Refined Slate Dark Mode */
+        body { background-color: #0f172a !important; color: #f8fafc !important; }
+        .bg-white, .bg-slate-50 { background-color: #1e293b !important; border-color: #334155 !important; color: #f8fafc !important; }
+        
+        .text-slate-800, .text-slate-700 { color: #f1f5f9 !important; }
+        .text-slate-600, .text-slate-500, .text-slate-400 { color: #cbd5e1 !important; }
+        .border-slate-200, .border-slate-100, .border-b, .border-l { border-color: #334155 !important; }
+        .border-slate-300 { border-color: #475569 !important; }
+        .sidebar { background-color: #0b1120 !important; border-right: 1px solid #1e293b !important; }
+        input, select, textarea { background-color: #0f172a !important; color: white !important; border-color: #475569 !important; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5) !important; }
+
+        /* Colored Badges / Cards Fixes */
+        .bg-blue-50, .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; color: #93c5fd !important; }
+        .text-blue-600, .text-blue-700, .text-blue-800 { color: #60a5fa !important; }
+        .border-blue-100, .border-blue-200, .border-l-blue-500 { border-color: rgba(59, 130, 246, 0.3) !important; }
+
+        .bg-emerald-50, .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.2) !important; color: #6ee7b7 !important; }
+        .text-emerald-600, .text-emerald-700, .text-emerald-800 { color: #34d399 !important; }
+        .border-emerald-100, .border-emerald-200 { border-color: rgba(16, 185, 129, 0.3) !important; }
+
+        .bg-amber-50, .bg-amber-100 { background-color: rgba(245, 158, 11, 0.2) !important; color: #fcd34d !important; }
+        .text-amber-600, .text-amber-700, .text-amber-800 { color: #fbbf24 !important; }
+        .border-amber-100, .border-amber-200 { border-color: rgba(245, 158, 11, 0.3) !important; }
+
+        .bg-rose-50, .bg-rose-100 { background-color: rgba(244, 63, 94, 0.2) !important; color: #fda4af !important; }
+        .text-rose-600, .text-rose-700, .text-rose-800 { color: #fb7185 !important; }
+        .border-rose-100, .border-rose-200 { border-color: rgba(244, 63, 94, 0.3) !important; }
+        
+        .bg-purple-50, .bg-purple-100 { background-color: rgba(168, 85, 247, 0.2) !important; color: #d8b4fe !important; }
+        .text-purple-600, .text-purple-700, .text-purple-800 { color: #c084fc !important; }
+
+        /* Bug Fixes for hover states and cards */
+        .bg-slate-100, .bg-slate-200 { background-color: #334155 !important; color: #e2e8f0 !important; }
+        .hover:bg-slate-50:hover, tr:hover { background-color: #334155 !important; }
+        .card { background-color: #1e293b !important; border-color: #334155 !important; }
+        
+        /* Logo Fix */
+        .sidebar img { background-color: transparent !important; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.5)) !important; }
+        <?php endif; ?>
     </style>
+
+
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 flex overflow-hidden">
     

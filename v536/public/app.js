@@ -92,7 +92,7 @@ async function stopLocalAudioCapture() {
 }
 
 
-window.originalStory = els.story.textContent.trim();
+window.originalStory = els.story.innerHTML;
 
 function setStatus(text) { els.status.textContent = text; }
 function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c])); }
@@ -1243,7 +1243,7 @@ function renderMarkedPassage(_assessment) {
   // intentionally rendered in the transcript pane so the learner's actual
   // spoken sequence is the thing being annotated.
   const plain = normalizeTextForDisplay(els.story.textContent);
-  els.story.textContent = plain;
+  /* els.story.textContent = plain; */
 }
 
 function miscuesForAccuracy(counts) {
@@ -1366,10 +1366,10 @@ window.addEventListener("resize", hideTooltip);
 
 els.editStoryBtn.addEventListener("click", () => {
   if (els.storyEditor.hidden) {
-    els.storyEditor.value = els.story.textContent.trim();
+    els.storyEditor.value = els.story.innerHTML.trim();
     els.story.hidden = true; els.storyEditor.hidden = false; els.editStoryBtn.querySelector("strong").textContent = "Save";
   } else {
-    els.story.textContent = els.storyEditor.value.trim() || window.originalStory;
+    els.story.innerHTML = els.storyEditor.value.trim() || window.originalStory;
     els.storyEditor.hidden = true; els.story.hidden = false; els.editStoryBtn.querySelector("strong").textContent = "Edit";
     updateStoryCount();
   }
@@ -1407,7 +1407,7 @@ els.resetBtn.addEventListener("click", () => {
   try { azureSocket?.close?.(); } catch (_) {}
   stopTimer(); resetResults(); resetRealtimeState();
   setRetryUi({ visible: false, enabled: false });
-  els.story.textContent = window.originalStory;
+  els.story.innerHTML = window.originalStory;
   els.storyEditor.hidden = true; els.story.hidden = false;
   els.editStoryBtn.querySelector("strong").textContent = "Edit";
   els.startBtn.disabled = false; els.stopBtn.disabled = true;

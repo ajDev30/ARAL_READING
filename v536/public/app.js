@@ -117,7 +117,7 @@ function sendRealtimeCommit(reason) {
   if (!localVadBufferHasSpeech) return false;
   if (!realtimeChannelIsOpen() || !realtimeBridgeReady) return false;
   try {
-    realtimeChannel.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
+    // realtimeChannel.send(JSON.stringify({ type: "input_audio_buffer.commit" })); // Disabled for WebRTC to prevent buffer too small errors
     localVadBufferHasSpeech = false;
     if (reason) console.log(`[Realtime VAD] commit reason=${reason}`);
     return true;
@@ -314,8 +314,9 @@ function handleRealtimeEvent(evt, sessionId = recordingSessionId) {
   }
 
   if (evt.type === "error") {
+    let details = evt.error || {};
+    if (details.code === "input_audio_buffer_commit_empty") return;
     captureRealtimeError(evt);
-    const details = evt.error || {};
     console.error(`[Realtime error] ${realtimeError}`, details);
     updateVadUi();
     els.hint.textContent = `Realtime error: ${realtimeError}`;

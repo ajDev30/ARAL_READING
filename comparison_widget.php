@@ -34,16 +34,6 @@ $stmtC = $pdo->prepare("
 $stmtC->execute([$target_user_id]);
 $c_attempts = $stmtC->fetchAll(PDO::FETCH_ASSOC);
 
-// 2. Fetch Phil-IRI pairs
-$stmtP = $pdo->prepare("
-    SELECT a.passage_id, a.phase, a.comprehension_score, p.title, p.questions_json 
-    FROM reading_attempts a
-    JOIN reading_passages p ON a.passage_id = p.id
-    WHERE a.user_id = ? AND a.phase IN ('Pre-Test', 'Post-Test')
-    ORDER BY a.created_at ASC
-");
-$stmtP->execute([$target_user_id]);
-$p_attempts = $stmtP->fetchAll(PDO::FETCH_ASSOC);
 
 $pairs = [];
 
@@ -57,15 +47,6 @@ foreach($c_attempts as $att) {
     else $pairs[$key]['post'] = $att['comprehension_score'];
 }
 
-// Process passages
-foreach($p_attempts as $att) {
-    $key = 'philiri_' . $att['passage_id'];
-    if(!isset($pairs[$key])) {
-        $pairs[$key] = ['title' => 'Phil-IRI Passage: ' . $att['title'], 'total' => getTotalItemsFromJSON($att['questions_json']), 'pre' => null, 'post' => null];
-    }
-    if($att['phase'] === 'Pre-Test') $pairs[$key]['pre'] = $att['comprehension_score'];
-    else $pairs[$key]['post'] = $att['comprehension_score'];
-}
 
 // Filter to only those with BOTH Pre and Post, OR just show all that have at least Pre?
 // "The system should compare the Pre-Test and Post-Test."

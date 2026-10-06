@@ -195,7 +195,7 @@ if(gstSubmitBtn) {
                     }
                 }
                 score += matches;
-            } else if (q.type === 'essay') {
+            else if (q.type === 'essay') {
                 let pts = parseInt(q.points) || 1; 
                 // Wait! GST essays cannot be manually graded later because GST results only store numeric score!
                 // We'll just grant 0 points and count it toward total, or assume GST shouldn't use essays. 
@@ -480,7 +480,7 @@ if(submitAssessmentBtn) {
                 }
                 compCorrect += matches;
             }
-            } else if (q.type === 'essay') {
+            else if (q.type === 'essay') {
                 const textarea = document.querySelector(`.q-block[data-idx="${idx}"] .essay-input`);
                 if (textarea) studentAnswers[idx] = textarea.value.trim();
                 let pts = parseInt(q.points) || 30;

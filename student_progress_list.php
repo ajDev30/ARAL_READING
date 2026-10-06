@@ -13,7 +13,7 @@ $stmt = $pdo->query("
            COUNT(ra.id) as total_tests,
            MAX(ra.created_at) as last_activity
     FROM users u
-    JOIN reading_attempts ra ON u.id = ra.user_id
+    JOIN reading_attempts ra ON u.id = ra.user_id AND ra.phase IN ('Course-Pre-Test', 'Course-Post-Test')
     WHERE u.role = 'student'
     GROUP BY u.id
     ORDER BY last_activity DESC

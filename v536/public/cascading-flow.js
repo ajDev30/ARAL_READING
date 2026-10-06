@@ -195,6 +195,7 @@ if(gstSubmitBtn) {
                     }
                 }
                 score += matches;
+            }
             else if (q.type === 'essay') {
                 let pts = parseInt(q.points) || 1; 
                 // Wait! GST essays cannot be manually graded later because GST results only store numeric score!

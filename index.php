@@ -39,17 +39,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Phil-IRI System</title>
     <!-- Tailwind CSS -->
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, arguments);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+    .sidebar { background-color: #1a365d; }
     </style>
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="flex items-center justify-center min-h-screen">
 
-    <div class="w-full max-w-md bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+    <div class="w-full max-w-md bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-8">
         
         <!-- Logo & Header -->
         <div class="text-center mb-8">
@@ -80,7 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             
             <div>
-                <div class="flex items-center justify-between mb-1">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-1">
                     <label class="block text-sm font-medium text-slate-700">Password</label>
                 </div>
                 <div class="relative">
@@ -105,5 +117,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
+
+    <script>
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.toggle('-translate-x-full');
+            if(overlay) overlay.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

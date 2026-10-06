@@ -1,36 +1,5 @@
-2026-10-05 10:24:08,948 [INFO] [Azure Service] starting at http://0.0.0.0:8011 SDK=1.51.2 region=southeastasia
-INFO:     Started server process [2769]
+2026-10-06 15:45:33,302 [INFO] [Azure Service] starting at http://0.0.0.0:8011 SDK=1.51.2 region=southeastasia
+INFO:     Started server process [3636]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8011 (Press CTRL+C to quit)
-INFO:     127.0.0.1:53834 - "WebSocket /ws/stream" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:53842 - "OPTIONS /api/realtime/token HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53842 - "POST /api/realtime/token HTTP/1.1" 200 OK
-2026-10-05 10:24:12,277 [INFO] [Azure] starting continuous PushAudioInputStream session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68 locale=en-US sdk=1.51.2
-2026-10-05 10:24:12,409 [INFO] [Azure] session started id=a5be92fafc91466aad0e3396dcf0507d
-2026-10-05 10:24:12,410 [INFO] [Azure] session_started confirmed session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68
-2026-10-05 10:24:12,411 [INFO] [Azure] WebSocket session ready id=16840f3e-7ce5-495d-9e8e-ce476ca4fe68
-2026-10-05 10:24:13,505 [INFO] [Azure] service connected session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68
-2026-10-05 10:24:26,806 [INFO] [Azure] recognized session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68 text='The quick brown fox jumps over the lazy Dog 5.' jsonWords=10 sdkWords=10 emittedWords=10
-2026-10-05 10:24:30,456 [INFO] [Azure] recognized session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68 text='5.' jsonWords=1 sdkWords=1 emittedWords=1
-2026-10-05 10:24:32,657 [INFO] [Azure] recognized session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68 text='5.' jsonWords=1 sdkWords=1 emittedWords=1
-2026-10-05 10:24:42,248 [INFO] [Azure] recognized session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68 text='' jsonWords=0 sdkWords=0 emittedWords=0
-2026-10-05 10:24:42,251 [INFO] [Azure] session canceled normally (EndOfStream) session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68
-2026-10-05 10:24:42,251 [INFO] [Azure] final session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68 reason=canceled recognizedResults=4 words=12 sessionStarted=True
-2026-10-05 10:24:42,252 [INFO] [Azure] session stopped session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68
-2026-10-05 10:24:42,255 [INFO] [Azure] service disconnected session=16840f3e-7ce5-495d-9e8e-ce476ca4fe68
-INFO:     127.0.0.1:53854 - "POST /api/realtime/token HTTP/1.1" 200 OK
-INFO:     127.0.0.1:47402 - "WebSocket /ws/stream" [accepted]
-INFO:     connection open
-2026-10-05 10:24:58,026 [INFO] [Azure] starting continuous PushAudioInputStream session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1 locale=en-US sdk=1.51.2
-2026-10-05 10:24:58,174 [INFO] [Azure] session started id=9cf63b828e5e43bf924dce02d9e1ce71
-2026-10-05 10:24:58,175 [INFO] [Azure] session_started confirmed session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1
-2026-10-05 10:24:58,175 [INFO] [Azure] WebSocket session ready id=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1
-2026-10-05 10:24:58,763 [INFO] [Azure] service connected session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1
-2026-10-05 10:25:10,571 [INFO] [Azure] recognized session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1 text='The quick brown fox jumps over the lazy Dog 4.' jsonWords=10 sdkWords=10 emittedWords=10
-2026-10-05 10:25:23,242 [INFO] [Azure] recognized session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1 text='' jsonWords=0 sdkWords=0 emittedWords=0
-2026-10-05 10:25:23,245 [INFO] [Azure] session canceled normally (EndOfStream) session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1
-2026-10-05 10:25:23,245 [INFO] [Azure] final session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1 reason=canceled recognizedResults=2 words=10 sessionStarted=True
-2026-10-05 10:25:23,246 [INFO] [Azure] session stopped session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1
-2026-10-05 10:25:23,248 [INFO] [Azure] service disconnected session=c4caf7e8-9c73-4c0d-b35b-eb3d9de4d5a1

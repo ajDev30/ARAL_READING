@@ -31,7 +31,7 @@ $content = str_replace('?>' . "\n" . '<!DOCTYPE html>', $php_logic . "\n" . '<!D
 
 // 2. Replace the HTML block
 $html_old = <<<'HTML'
-            <div class="flex items-center justify-between border-b pb-4 mb-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 mb-4">
                 <div>
                     <h2 class="text-xl font-bold text-slate-800">Enable ASR Service</h2>
                     <p class="text-sm text-slate-500">Toggle whether students can use the automated voice reading assessments.</p>

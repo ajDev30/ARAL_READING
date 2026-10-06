@@ -92,13 +92,13 @@ async function stopLocalAudioCapture() {
 }
 
 
-window.originalStory = els.story.textContent.trim();
+window.originalStory = els.story.innerHTML;
 
 function setStatus(text) { els.status.textContent = text; }
 function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c])); }
-function normalizeTextForDisplay(s) { return String(s || "").replace(/\s+/g, " ").trim(); }
+function normalizeTextForDisplay(s) { return String(s || "").replace(/[ \t]+/g, " ").trim(); }
 
-function currentStory() { return normalizeTextForDisplay(els.story.textContent); }
+function currentStory() { return normalizeTextForDisplay(els.story.innerText); }
 function updateStoryCount() {
   const count = Core.tokenize(currentStory()).length;
   els.storyWordCount.textContent = count;
@@ -183,7 +183,7 @@ function startTimer() { startedAt = Date.now(); updateTimer(); timerHandle = set
 function stopTimer() { clearInterval(timerHandle); timerHandle = null; els.meter.style.width = "0%"; }
 
 function realtimeTranscriptText() {
-  return realtimeOrder.map(id => realtimeItems.get(id)?.text || "").filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+  return realtimeOrder.map(id => realtimeItems.get(id)?.text || "").filter(Boolean).join(" ").replace(/[ \t]+/g, " ").trim();
 }
 
 
@@ -559,7 +559,6 @@ async function connectOpenAITranscription({ referenceText = "", locale, stream, 
         type: "session.update",
         session: {
           type: "transcription",
-          modalities: ["text"],
           turn_detection: {
             type: "server_vad",
             threshold: 0.5,
@@ -1263,19 +1262,19 @@ function renderMarkedPassage(_assessment) {
   // The expected story is the clean reference. All scoring/reading markup is
   // intentionally rendered in the transcript pane so the learner's actual
   // spoken sequence is the thing being annotated.
-  const plain = normalizeTextForDisplay(els.story.textContent);
-  els.story.textContent = plain;
+  const plain = normalizeTextForDisplay(els.story.innerText);
+  /* els.story.textContent = plain; (Preserve HTML formatting) */
 }
 
 function miscuesForAccuracy(counts) {
-  return (counts.mispronunciation || 0) + (counts.omission || 0) + (counts.substitution || 0) +
+  return (counts.mispronunciation || 0) + (counts.omission || 0) + (counts.substitution || 0) + (counts.insertion || 0) +
     (counts.repetition || 0) + (counts.transposition || 0) + (counts.reversal || 0);
 }
 
 function renderMiscueStrip(counts) {
   const items = [
     ["Mispronunciation","mis",counts.mispronunciation], ["Omission","om",counts.omission],
-    ["Substitution","sub",counts.substitution], ["Repetition","rep",counts.repetition],
+    ["Substitution","sub",counts.substitution], ["Insertion","ins",counts.insertion], ["Repetition","rep",counts.repetition],
     ["Transposition","trans",counts.transposition], ["Reversal","rev",counts.reversal],
     ["Self-correction","self",counts.selfCorrection || 0]
   ];
@@ -1387,10 +1386,10 @@ window.addEventListener("resize", hideTooltip);
 
 els.editStoryBtn.addEventListener("click", () => {
   if (els.storyEditor.hidden) {
-    els.storyEditor.value = els.story.textContent.trim();
+    els.storyEditor.value = els.story.innerHTML.trim();
     els.story.hidden = true; els.storyEditor.hidden = false; els.editStoryBtn.querySelector("strong").textContent = "Save";
   } else {
-    els.story.textContent = els.storyEditor.value.trim() || window.originalStory;
+    els.story.innerHTML = els.storyEditor.value.trim() || window.originalStory;
     els.storyEditor.hidden = true; els.story.hidden = false; els.editStoryBtn.querySelector("strong").textContent = "Edit";
     updateStoryCount();
   }
@@ -1428,7 +1427,7 @@ els.resetBtn.addEventListener("click", () => {
   try { azureSocket?.close?.(); } catch (_) {}
   stopTimer(); resetResults(); resetRealtimeState();
   setRetryUi({ visible: false, enabled: false });
-  els.story.textContent = window.originalStory;
+  els.story.innerHTML = window.originalStory;
   els.storyEditor.hidden = true; els.story.hidden = false;
   els.editStoryBtn.querySelector("strong").textContent = "Edit";
   els.startBtn.disabled = false; els.stopBtn.disabled = true;

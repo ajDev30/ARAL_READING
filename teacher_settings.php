@@ -82,7 +82,24 @@ $has_speech_key = !empty($settings['azure_speech_key']);
 $has_region = !empty($settings['azure_region']);
 
 $requirements_met = $has_openai_key && $has_speech_key && $has_region;
+
 $is_enabled = ($settings['asr_enabled'] ?? '') == '1';
+
+// --- HEALTH CHECK: IF ENABLED BUT NOT RUNNING, FORCE OFF ---
+if ($is_enabled && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $check_script_path = __DIR__ . '/v536/service.py';
+    $pid = exec("pgrep -f 'python3 $check_script_path'");
+    if (empty($pid)) {
+        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('asr_enabled', '0') ON DUPLICATE KEY UPDATE setting_value = '0'");
+        $stmt->execute();
+        $is_enabled = false;
+        $settings['asr_enabled'] = '0';
+        if (empty($success)) {
+            $success = "Notice: The Python ASR Service was found offline in the background. The toggle has been automatically turned OFF.";
+        }
+    }
+}
+
 
 if ($is_enabled && $requirements_met) {
     $badge_class = "bg-emerald-100 text-emerald-700 border-emerald-200";
@@ -104,17 +121,74 @@ if ($is_enabled && $requirements_met) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASR Settings - Teacher Dashboard</title>
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, arguments);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+            .sidebar { background-color: #1a365d; }
+        <?php $is_dark = isset($_COOKIE['theme']) && $_COOKIE['theme'] === 'dark'; ?>
+        <?php if($is_dark): ?>
+        /* Refined Slate Dark Mode */
+        body { background-color: #0f172a !important; color: #f8fafc !important; }
+        .bg-white, .bg-slate-50 { background-color: #1e293b !important; border-color: #334155 !important; color: #f8fafc !important; }
+        
+        .text-slate-800, .text-slate-700 { color: #f1f5f9 !important; }
+        .text-slate-600, .text-slate-500, .text-slate-400 { color: #cbd5e1 !important; }
+        .border-slate-200, .border-slate-100, .border-b, .border-l { border-color: #334155 !important; }
+        .border-slate-300 { border-color: #475569 !important; }
+        .sidebar { background-color: #0b1120 !important; border-right: 1px solid #1e293b !important; }
+        input, select, textarea { background-color: #0f172a !important; color: white !important; border-color: #475569 !important; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5) !important; }
+
+        /* Colored Badges / Cards Fixes */
+        .bg-blue-50, .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; color: #93c5fd !important; }
+        .text-blue-600, .text-blue-700, .text-blue-800 { color: #60a5fa !important; }
+        .border-blue-100, .border-blue-200, .border-l-blue-500 { border-color: rgba(59, 130, 246, 0.3) !important; }
+
+        .bg-emerald-50, .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.2) !important; color: #6ee7b7 !important; }
+        .text-emerald-600, .text-emerald-700, .text-emerald-800 { color: #34d399 !important; }
+        .border-emerald-100, .border-emerald-200 { border-color: rgba(16, 185, 129, 0.3) !important; }
+
+        .bg-amber-50, .bg-amber-100 { background-color: rgba(245, 158, 11, 0.2) !important; color: #fcd34d !important; }
+        .text-amber-600, .text-amber-700, .text-amber-800 { color: #fbbf24 !important; }
+        .border-amber-100, .border-amber-200 { border-color: rgba(245, 158, 11, 0.3) !important; }
+
+        .bg-rose-50, .bg-rose-100 { background-color: rgba(244, 63, 94, 0.2) !important; color: #fda4af !important; }
+        .text-rose-600, .text-rose-700, .text-rose-800 { color: #fb7185 !important; }
+        .border-rose-100, .border-rose-200 { border-color: rgba(244, 63, 94, 0.3) !important; }
+        
+        .bg-purple-50, .bg-purple-100 { background-color: rgba(168, 85, 247, 0.2) !important; color: #d8b4fe !important; }
+        .text-purple-600, .text-purple-700, .text-purple-800 { color: #c084fc !important; }
+
+        /* Bug Fixes for hover states and cards */
+        .bg-slate-100, .bg-slate-200 { background-color: #334155 !important; color: #e2e8f0 !important; }
+        .hover\:bg-slate-50:hover, tr:hover { background-color: #334155 !important; }
+        .card { background-color: #1e293b !important; border-color: #334155 !important; }
+        
+        /* Logo Fix */
+        .sidebar img { background-color: transparent !important; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.5)) !important; }
+        <?php endif; ?>
     </style>
+
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex h-screen overflow-hidden text-slate-800">
+    <?php include 'teacher_sidebar.php'; ?>
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
     
     <!-- Top Navbar -->
-    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
         <div class="flex items-center">
             <a href="dashboard_teacher.php" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
             <i class="fas fa-cog text-slate-500 text-2xl mr-3"></i>
@@ -122,7 +196,7 @@ if ($is_enabled && $requirements_met) {
         </div>
     </header>
 
-    <main class="flex-1 p-8 max-w-4xl mx-auto w-full overflow-y-auto">
+    <main class="flex-1 p-4 md:p-8 max-w-4xl mx-auto w-full overflow-y-auto">
         <?php if($success): ?>
             <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-6 flex items-start">
                 <i class="fas fa-check-circle mt-0.5 mr-2"></i>
@@ -130,7 +204,7 @@ if ($is_enabled && $requirements_met) {
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="" class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-6">
+        <form method="POST" action="" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-8 space-y-6">
             
             <div class="flex items-start justify-between border-b pb-4 mb-4">
                 <div>
@@ -162,7 +236,7 @@ if ($is_enabled && $requirements_met) {
             </div>
 
             <h3 class="font-bold text-slate-800 text-lg mb-2"><i class="fas fa-robot text-blue-500 mr-2"></i> OpenAI Configuration</h3>
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="col-span-2">
                     <label class="block text-sm font-medium text-slate-700 mb-1">OpenAI API Key</label>
                     <input type="password" name="azure_openai_key" value="<?php echo htmlspecialchars($settings['azure_openai_key'] ?? ''); ?>" placeholder="sk-proj-..." class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
@@ -174,7 +248,7 @@ if ($is_enabled && $requirements_met) {
             </div>
 
             <h3 class="font-bold text-slate-800 text-lg mb-2 mt-8"><i class="fas fa-cloud text-blue-500 mr-2"></i> Azure Speech SDK Configuration</h3>
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="col-span-2">
                     <label class="block text-sm font-medium text-slate-700 mb-1">Azure Speech API Key</label>
                     <input type="password" name="azure_speech_key" value="<?php echo htmlspecialchars($settings['azure_speech_key'] ?? ''); ?>" placeholder="Enter Azure Speech Resource Key..." class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
@@ -191,7 +265,7 @@ if ($is_enabled && $requirements_met) {
             </div>
 
             <h3 class="font-bold text-slate-800 text-lg mb-2 mt-8"><i class="fas fa-volume-up text-blue-500 mr-2"></i> OpenAI TTS (Text-To-Speech)</h3>
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">TTS Voice</label>
                     <select name="tts_voice" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
@@ -214,9 +288,19 @@ if ($is_enabled && $requirements_met) {
             </div>
 
             <div class="pt-6 border-t mt-8 text-right">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg transition shadow-sm">Save Settings</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 md:px-8 rounded-lg transition shadow-sm">Save Settings</button>
             </div>
         </form>
     </main>
+
+        </div>
+<script>
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.toggle('-translate-x-full');
+            if(overlay) overlay.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

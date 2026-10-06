@@ -20,6 +20,10 @@ if(!$gradeNum) $gradeNum = 7;
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="v536/public/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light is-uninitialized">
     <main class="shell container mt-4">
@@ -157,7 +161,16 @@ if(!$gradeNum) $gradeNum = 7;
         window.STUDENT_GRADE = <?php echo $gradeNum; ?>;
     </script>
     <script src="v536/public/assessment-core.js?v=2.0.10"></script>
-    <script src="v536/public/app.js?v=2.0.12"></script>
-    <script src="v536/public/cascading-flow.js?v=2.0.10"></script>
+    <script src="v536/public/app.js?v=2.0.15"></script>
+    <script src="v536/public/cascading-flow.js?v=2.0.12"></script>
+
+    <script>
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.toggle('-translate-x-full');
+            if(overlay) overlay.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

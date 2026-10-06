@@ -103,15 +103,75 @@ if ($action === 'override_attempt') {
     if ($_SESSION['role'] !== 'teacher') { echo json_encode(['error' => 'Unauthorized']); exit; }
     
     $attempt_id = $_POST['attempt_id'] ?? 0;
-    $acc = $_POST['accuracy_score'] ?? 0;
+    $acc = floatval($_POST['accuracy_score'] ?? 0);
     $miscues = $_POST['miscues_json'] ?? '{}';
+    $answers_json = $_POST['answers_json'] ?? '{}';
+    $answers_json = $_POST['answers_json'] ?? '{}';
     $eval_data = $_POST['evaluation_data'] ?? null;
     
-    $stmt = $pdo->prepare("UPDATE reading_attempts SET accuracy_score = ?, miscues_json = ?, evaluation_data = ? WHERE id = ?");
-    $stmt->execute([$acc, $miscues, $eval_data, $attempt_id]);
-    
-    echo json_encode(['status' => 'success']);
-    exit;
+    try {
+        $pdo->beginTransaction();
+        
+        // 1. Fetch attempt to get comprehension_score and user_id
+        $stmt = $pdo->prepare("SELECT user_id, comprehension_score, passage_grade FROM reading_attempts WHERE id = ?");
+        $stmt->execute([$attempt_id]);
+        $attempt = $stmt->fetch();
+        if (!$attempt) throw new Exception("Attempt not found");
+        
+        $uid = $attempt['user_id'];
+        $comp = floatval($attempt['comprehension_score']);
+        if (isset($_POST['comp_score'])) { $comp = floatval($_POST['comp_score']); }
+        
+        // 2. Calculate new classification
+        $new_class = 'Instructional';
+        if ($acc >= 97 && $comp >= 80) $new_class = 'Independent';
+        elseif ($acc <= 89 || $comp <= 58) $new_class = 'Frustration';
+        
+        // 3. Update the specific attempt
+        $stmt = $pdo->prepare("UPDATE reading_attempts SET accuracy_score = ?, comprehension_score = ?, miscues_json = ?, evaluation_data = ?, oral_reading_profile = ?, answers_json = ? WHERE id = ?");
+        $stmt->execute([$acc, $comp, $miscues, $eval_data, $new_class, $answers_json, $attempt_id]);
+        
+        // 4. Fetch all attempts for this student to rebuild profile
+        $stmt = $pdo->prepare("SELECT passage_grade, oral_reading_profile FROM reading_attempts WHERE user_id = ? AND phase = 'Pre-Test' ORDER BY created_at ASC");
+        $stmt->execute([$uid]);
+        $all_attempts = $stmt->fetchAll();
+        
+        // Deduplicate grades, taking the latest (since ordered by ASC)
+        $grades = [];
+        foreach($all_attempts as $a) {
+            $grades[$a['passage_grade']] = $a['oral_reading_profile'];
+        }
+        
+        ksort($grades); // Ensure lowest grades are processed first so highest grades take precedence
+        
+        $ind = null; $ins = null; $fru = null;
+        foreach($grades as $g => $cls) {
+            if ($cls === 'Independent') $ind = $g;
+            if ($cls === 'Instructional') $ins = $g;
+            if ($cls === 'Frustration') $fru = $g;
+        }
+        
+        // 5. Replace reading_profiles
+        $stmt = $pdo->prepare("REPLACE INTO reading_profiles (user_id, independent_grade, instructional_grade, frustration_grade) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$uid, $ind, $ins, $fru]);
+        
+        $pdo->commit();
+        
+        echo json_encode([
+            'status' => 'success',
+            'new_passage_classification' => $new_class,
+            'new_profile' => [
+                'independent' => $ind,
+                'instructional' => $ins,
+                'frustration' => $fru
+            ]
+        ]);
+        exit;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo json_encode(['error' => $e->getMessage()]);
+        exit;
+    }
 }
 
 if ($action === 'submit_attempt') {
@@ -122,6 +182,8 @@ if ($action === 'submit_attempt') {
     $time = $_POST['reading_time'] ?? 0;
     $speed = $_POST['reading_speed'] ?? 0;
     $miscues = $_POST['miscues_json'] ?? '{}';
+    $answers_json = $_POST['answers_json'] ?? '{}';
+    $answers_json = $_POST['answers_json'] ?? '{}';
     $eval_data = $_POST['evaluation_data'] ?? null;
     
     $audio_path = null;
@@ -139,8 +201,38 @@ if ($action === 'submit_attempt') {
     $stmt->execute(["Grade $grade"]);
     $pid = $stmt->fetchColumn() ?: 0;
 
-    $stmt = $pdo->prepare("INSERT INTO reading_attempts (user_id, passage_id, passage_grade, accuracy_score, comprehension_score, oral_reading_profile, reading_time, reading_speed, miscues_json, evaluation_data, audio_path, status, phase) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed', 'Pre-Test')");
-    $stmt->execute([$user_id, $pid, $grade, $acc, $comp, $class, $time, $speed, $miscues, $eval_data, $audio_path]);
+    $stmt = $pdo->prepare("INSERT INTO reading_attempts (user_id, passage_id, passage_grade, accuracy_score, comprehension_score, oral_reading_profile, reading_time, reading_speed, miscues_json, evaluation_data, audio_path, status, phase, answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed', 'Pre-Test', ?)");
+    $stmt->execute([$user_id, $pid, $grade, $acc, $comp, $class, $time, $speed, $miscues, $eval_data, $audio_path, $answers_json]);
+    
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+if ($action === 'submit_course_attempt') {
+    $pid = $_POST['passage_id'] ?? 0;
+    $phase = $_POST['phase'] ?? 'Course-Pre-Test';
+    $acc = floatval($_POST['accuracy_score'] ?? 0);
+    $comp = floatval($_POST['comprehension_score'] ?? 0);
+    $class = $_POST['oral_reading_profile'] ?? 'Instructional';
+    $time = intval($_POST['reading_time'] ?? 0);
+    $speed = floatval($_POST['reading_speed'] ?? 0);
+    $miscues = $_POST['miscues_json'] ?? '{}';
+    $answers_json = $_POST['answers_json'] ?? '{}';
+    $answers_json = $_POST['answers_json'] ?? '{}';
+    $eval_data = $_POST['evaluation_data'] ?? null;
+    
+    $audio_path = null;
+    if (isset($_FILES['audio_file']) && $_FILES['audio_file']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = __DIR__ . '/uploads/audio/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+        $filename = 'course_' . $user_id . '_' . time() . '.webm';
+        if (move_uploaded_file($_FILES['audio_file']['tmp_name'], $upload_dir . $filename)) {
+            $audio_path = 'uploads/audio/' . $filename;
+        }
+    }
+    
+    $stmt = $pdo->prepare("INSERT INTO reading_attempts (user_id, passage_id, phase, accuracy_score, comprehension_score, oral_reading_profile, reading_time, reading_speed, miscues_json, evaluation_data, audio_path, status, answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed', ?)");
+    $stmt->execute([$user_id, $pid, $phase, $acc, $comp, $class, $time, $speed, $miscues, $eval_data, $audio_path, $answers_json]);
     
     echo json_encode(['status' => 'success']);
     exit;

@@ -25,17 +25,74 @@ $profiles = $stmt->fetchAll();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assessment Results - Teacher Dashboard</title>
     <!-- Tailwind CSS -->
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, arguments);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+            .sidebar { background-color: #1a365d; }
+        <?php $is_dark = isset($_COOKIE['theme']) && $_COOKIE['theme'] === 'dark'; ?>
+        <?php if($is_dark): ?>
+        /* Refined Slate Dark Mode */
+        body { background-color: #0f172a !important; color: #f8fafc !important; }
+        .bg-white, .bg-slate-50 { background-color: #1e293b !important; border-color: #334155 !important; color: #f8fafc !important; }
+        
+        .text-slate-800, .text-slate-700 { color: #f1f5f9 !important; }
+        .text-slate-600, .text-slate-500, .text-slate-400 { color: #cbd5e1 !important; }
+        .border-slate-200, .border-slate-100, .border-b, .border-l { border-color: #334155 !important; }
+        .border-slate-300 { border-color: #475569 !important; }
+        .sidebar { background-color: #0b1120 !important; border-right: 1px solid #1e293b !important; }
+        input, select, textarea { background-color: #0f172a !important; color: white !important; border-color: #475569 !important; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5) !important; }
+
+        /* Colored Badges / Cards Fixes */
+        .bg-blue-50, .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; color: #93c5fd !important; }
+        .text-blue-600, .text-blue-700, .text-blue-800 { color: #60a5fa !important; }
+        .border-blue-100, .border-blue-200, .border-l-blue-500 { border-color: rgba(59, 130, 246, 0.3) !important; }
+
+        .bg-emerald-50, .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.2) !important; color: #6ee7b7 !important; }
+        .text-emerald-600, .text-emerald-700, .text-emerald-800 { color: #34d399 !important; }
+        .border-emerald-100, .border-emerald-200 { border-color: rgba(16, 185, 129, 0.3) !important; }
+
+        .bg-amber-50, .bg-amber-100 { background-color: rgba(245, 158, 11, 0.2) !important; color: #fcd34d !important; }
+        .text-amber-600, .text-amber-700, .text-amber-800 { color: #fbbf24 !important; }
+        .border-amber-100, .border-amber-200 { border-color: rgba(245, 158, 11, 0.3) !important; }
+
+        .bg-rose-50, .bg-rose-100 { background-color: rgba(244, 63, 94, 0.2) !important; color: #fda4af !important; }
+        .text-rose-600, .text-rose-700, .text-rose-800 { color: #fb7185 !important; }
+        .border-rose-100, .border-rose-200 { border-color: rgba(244, 63, 94, 0.3) !important; }
+        
+        .bg-purple-50, .bg-purple-100 { background-color: rgba(168, 85, 247, 0.2) !important; color: #d8b4fe !important; }
+        .text-purple-600, .text-purple-700, .text-purple-800 { color: #c084fc !important; }
+
+        /* Bug Fixes for hover states and cards */
+        .bg-slate-100, .bg-slate-200 { background-color: #334155 !important; color: #e2e8f0 !important; }
+        .hover\:bg-slate-50:hover, tr:hover { background-color: #334155 !important; }
+        .card { background-color: #1e293b !important; border-color: #334155 !important; }
+        
+        /* Logo Fix */
+        .sidebar img { background-color: transparent !important; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.5)) !important; }
+        <?php endif; ?>
     </style>
+
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex h-screen overflow-hidden text-slate-800">
+    <?php include 'teacher_sidebar.php'; ?>
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
     
     <!-- Top Navbar -->
-    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
         <div class="flex items-center">
             <a href="dashboard_teacher.php" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
             <i class="fas fa-users text-rose-500 text-2xl mr-3"></i>
@@ -52,7 +109,7 @@ $profiles = $stmt->fetchAll();
         </div>
     </header>
 
-    <main class="flex-1 p-8 max-w-6xl mx-auto w-full overflow-y-auto">
+    <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full overflow-y-auto">
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 class="text-xl font-bold text-slate-800 mb-6">Completed Pre-Assessments</h2>
             
@@ -67,12 +124,37 @@ $profiles = $stmt->fetchAll();
                                 <th class="py-3 px-4 font-medium text-emerald-600">Independent</th>
                                 <th class="py-3 px-4 font-medium text-amber-600">Instructional</th>
                                 <th class="py-3 px-4 font-medium text-rose-600">Frustration</th>
+                                <th class="py-3 px-4 font-bold text-slate-800">Overall Status</th>
                                 <th class="py-3 px-4 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php foreach($profiles as $prof): 
                                 $date = date('M d, Y g:i A', strtotime($prof['updated_at']));
+                                
+                                // Calculate Overall Final Status based on Highest Tested Grade in Profile
+                                $max_grade = 0;
+                                $final_status = 'Pending';
+                                
+                                if ($prof['frustration_grade'] !== null && intval($prof['frustration_grade']) > $max_grade) {
+                                    $max_grade = intval($prof['frustration_grade']);
+                                    $final_status = 'Frustration';
+                                }
+                                if ($prof['instructional_grade'] !== null && intval($prof['instructional_grade']) > $max_grade) {
+                                    $max_grade = intval($prof['instructional_grade']);
+                                    $final_status = 'Instructional';
+                                }
+                                if ($prof['independent_grade'] !== null && intval($prof['independent_grade']) > $max_grade) {
+                                    $max_grade = intval($prof['independent_grade']);
+                                    $final_status = 'Independent';
+                                }
+                                
+                                $display_verdict = $max_grade > 0 ? "$final_status — Grade $max_grade" : "Pending";
+                                
+                                $status_color = 'bg-slate-100 text-slate-800';
+                                if ($final_status === 'Frustration') $status_color = 'bg-rose-100 text-rose-800';
+                                elseif ($final_status === 'Instructional') $status_color = 'bg-amber-100 text-amber-800';
+                                elseif ($final_status === 'Independent') $status_color = 'bg-emerald-100 text-emerald-800';
                             ?>
                             <tr class="hover:bg-slate-50">
                                 <td class="py-3 px-4 font-medium text-slate-800"><?php echo htmlspecialchars($prof['fname'] . ' ' . $prof['lname']); ?></td>
@@ -81,6 +163,11 @@ $profiles = $stmt->fetchAll();
                                 <td class="py-3 px-4 font-medium"><?php echo $prof['independent_grade'] ? 'Grade ' . $prof['independent_grade'] : '—'; ?></td>
                                 <td class="py-3 px-4 font-medium"><?php echo $prof['instructional_grade'] ? 'Grade ' . $prof['instructional_grade'] : '—'; ?></td>
                                 <td class="py-3 px-4 font-medium"><?php echo $prof['frustration_grade'] ? 'Grade ' . $prof['frustration_grade'] : '—'; ?></td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold <?php echo $status_color; ?>">
+                                        <?php echo $display_verdict; ?>
+                                    </span>
+                                </td>
                                 <td class="py-3 px-4 text-right">
                                     <a href="student_submissions.php?user_id=<?php echo $prof['student_id']; ?>" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-medium transition">
                                         <i class="fas fa-folder-open mr-1.5"></i> View Submissions
@@ -102,5 +189,15 @@ $profiles = $stmt->fetchAll();
             <?php endif; ?>
         </div>
     </main>
+
+        </div>
+<script>
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.toggle('-translate-x-full');
+            if(overlay) overlay.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

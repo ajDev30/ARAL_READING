@@ -1,0 +1,4 @@
+/uploads/audio/*.webm
+/uploads/images/*
+!/uploads/images/.gitkeep
+/v536/service.log

@@ -123,32 +123,87 @@ async function loadGSTContent() {
 function renderGSTUI(questions) {
     gstQuestionsContainer.innerHTML = '';
     questions.forEach((q, idx) => {
-        let html = `<div class="mb-4 q-block p-4 border rounded bg-white">
-            <h5 class="font-weight-bold mb-3">${idx + 1}. ${q.question}</h5>`;
-        (q.options || []).forEach((opt, oIdx) => {
-            html += `
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="gst_q_${idx}" value="${oIdx}" id="gst_q_${idx}_${oIdx}">
-                <label class="form-check-label" for="gst_q_${idx}_${oIdx}">${opt}</label>
-            </div>`;
-        });
+        let html = `<div class="mb-4 q-block p-4 border rounded bg-white" data-idx="${idx}" data-type="${q.type || 'multichoice'}">
+            <h5 class="font-weight-bold mb-3">${idx + 1}. ${q.question || q.text || ''}</h5>`;
+            
+        if (q.type === 'multichoice' || !q.type || q.options) {
+            (q.options || []).forEach((opt, oIdx) => {
+                html += `<div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="gst_q_${idx}" value="${oIdx}" id="gst_q_${idx}_${oIdx}">
+                    <label class="form-check-label" for="gst_q_${idx}_${oIdx}">${opt}</label>
+                </div>`;
+            });
+        } else if (q.type === 'truefalse') {
+            html += `<div class="form-check mb-2"><input class="form-check-input" type="radio" name="gst_q_${idx}" value="true" id="gst_q_${idx}_t"><label class="form-check-label" for="gst_q_${idx}_t">True</label></div>
+                     <div class="form-check mb-2"><input class="form-check-input" type="radio" name="gst_q_${idx}" value="false" id="gst_q_${idx}_f"><label class="form-check-label" for="gst_q_${idx}_f">False</label></div>`;
+        } else if (q.type === 'enumeration') {
+            const count = (q.answers && q.answers.length > 0) ? q.answers.length : (parseInt(q.count) || 3);
+            for(let c=0; c<count; c++) html += `<input type="text" class="form-control mb-2 enum-input" placeholder="Item ${c+1}">`;
+        } else if (q.type === 'essay') {
+            html += `<textarea class="form-control essay-input" rows="3" placeholder="Type your answer..."></textarea>`;
+        }
+        
         html += `</div>`;
         gstQuestionsContainer.innerHTML += html;
     });
 }
 
 if(gstSubmitBtn) {
-    gstSubmitBtn.addEventListener('click', async () => {
+        gstSubmitBtn.addEventListener('click', async () => {
         if(gstTimerInterval) clearInterval(gstTimerInterval);
         
         let score = 0;
-        let total = window.currentGstQuestions.length;
+        let total = 0;
+        
         window.currentGstQuestions.forEach((q, idx) => {
-            const checked = document.querySelector(`input[name="gst_q_${idx}"]:checked`);
-            if (checked && parseInt(checked.value) === parseInt(q.correct)) {
-                score++;
+            if (q.type === 'multichoice' || !q.type || q.options) {
+                total++;
+                const checked = document.querySelector(`input[name="gst_q_${idx}"]:checked`);
+                if (checked && parseInt(checked.value) === parseInt(q.correct)) score++;
+            } else if (q.type === 'truefalse') {
+                total++;
+                const checked = document.querySelector(`input[name="gst_q_${idx}"]:checked`);
+                if (checked && checked.value === String(q.correct)) score++;
+            } else if (q.type === 'enumeration') {
+                const inputs = document.querySelectorAll(`.q-block[data-idx="${idx}"] .enum-input`);
+                let userAnswers = Array.from(inputs).map(inp => inp.value.trim());
+                let correctAnswers = q.answers || [];
+                let expectedCount = correctAnswers.length > 0 ? correctAnswers.length : (parseInt(q.count) || 1);
+                total += expectedCount;
+                
+                let matches = 0;
+                let anyOrder = q.anyOrder !== undefined ? q.anyOrder : true;
+                let caseSensitive = q.caseSensitive || false;
+                
+                if (anyOrder) {
+                    let matchedIndexes = new Set();
+                    userAnswers.forEach(uAns => {
+                        if (!uAns) return;
+                        let u = caseSensitive ? uAns : uAns.toLowerCase();
+                        for (let i = 0; i < correctAnswers.length; i++) {
+                            if (matchedIndexes.has(i)) continue;
+                            let c = caseSensitive ? correctAnswers[i].trim() : correctAnswers[i].trim().toLowerCase();
+                            if (u === c && c !== "") { matches++; matchedIndexes.add(i); break; }
+                        }
+                    });
+                } else {
+                    for (let i = 0; i < correctAnswers.length; i++) {
+                        if (i >= userAnswers.length) break;
+                        let u = caseSensitive ? userAnswers[i] : userAnswers[i].toLowerCase();
+                        let c = caseSensitive ? correctAnswers[i].trim() : correctAnswers[i].trim().toLowerCase();
+                        if (u === c && c !== "") matches++;
+                    }
+                }
+                score += matches;
+            } else if (q.type === 'essay') {
+                let pts = parseInt(q.points) || 1; 
+                // Wait! GST essays cannot be manually graded later because GST results only store numeric score!
+                // We'll just grant 0 points and count it toward total, or assume GST shouldn't use essays. 
+                // For safety, add the max points to total so the math works, though GST essays are an edge case.
+                total += pts; 
             }
         });
+
 
         // Determine starting grade
         let offset = GST_RULES.lowerGradesToStartBelow; // 0-15 = -3
@@ -315,7 +370,7 @@ async function startGradedPassage(grade) {
     const storyEditor = document.getElementById('storyEditor');
     if(storyEditor) storyEditor.value = currentPassageData.passage_text;
     if(storyEl) {
-        storyEl.textContent = currentPassageData.passage_text;
+        storyEl.innerHTML = currentPassageData.passage_text;
         if (window.originalStory !== undefined) window.originalStory = currentPassageData.passage_text;
     }
 
@@ -372,17 +427,65 @@ if(submitAssessmentBtn) {
 
         let compCorrect = 0;
         let compTotal = 0;
+        let studentAnswers = {};
         let allQ = JSON.parse(currentPassageData.questions_json || '[]');
 
         allQ.forEach((q, idx) => {
             if (q.type === 'multichoice') {
                 compTotal++;
                 const checked = document.querySelector(`input[name="q_${idx}"]:checked`);
+                if (checked) studentAnswers[idx] = checked.value;
                 if (checked && checked.value === q.options[parseInt(q.correct)]) compCorrect++;
             } else if (q.type === 'truefalse') {
                 compTotal++;
                 const checked = document.querySelector(`input[name="q_${idx}"]:checked`);
+                if (checked) studentAnswers[idx] = checked.value;
                 if (checked && checked.value === String(q.correct)) compCorrect++;
+            } else if (q.type === 'enumeration') {
+                const inputs = document.querySelectorAll(`.q-block[data-idx="${idx}"] .enum-input`);
+                let userAnswers = Array.from(inputs).map(inp => inp.value.trim());
+                studentAnswers[idx] = userAnswers;
+                let correctAnswers = q.answers || [];
+                let expectedCount = correctAnswers.length > 0 ? correctAnswers.length : (parseInt(q.count) || 1);
+                compTotal += expectedCount;
+                
+                let matches = 0;
+                let anyOrder = q.anyOrder !== undefined ? q.anyOrder : true;
+                let caseSensitive = q.caseSensitive || false;
+                
+                if (anyOrder) {
+                    let matchedIndexes = new Set();
+                    userAnswers.forEach(uAns => {
+                        if (!uAns) return;
+                        let u = caseSensitive ? uAns : uAns.toLowerCase();
+                        for (let i = 0; i < correctAnswers.length; i++) {
+                            if (matchedIndexes.has(i)) continue;
+                            let c = caseSensitive ? correctAnswers[i].trim() : correctAnswers[i].trim().toLowerCase();
+                            if (u === c && c !== "") {
+                                matches++;
+                                matchedIndexes.add(i);
+                                break;
+                            }
+                        }
+                    });
+                } else {
+                    for (let i = 0; i < correctAnswers.length; i++) {
+                        if (i >= userAnswers.length) break;
+                        let u = caseSensitive ? userAnswers[i] : userAnswers[i].toLowerCase();
+                        let c = caseSensitive ? correctAnswers[i].trim() : correctAnswers[i].trim().toLowerCase();
+                        if (u === c && c !== "") {
+                            matches++;
+                        }
+                    }
+                }
+                compCorrect += matches;
+            }
+            } else if (q.type === 'essay') {
+                const textarea = document.querySelector(`.q-block[data-idx="${idx}"] .essay-input`);
+                if (textarea) studentAnswers[idx] = textarea.value.trim();
+                let pts = parseInt(q.points) || 30;
+                compTotal += pts; 
+                // Student gets 0 points for essay by default until teacher grades it
             }
         });
 
@@ -408,6 +511,7 @@ if(submitAssessmentBtn) {
         fd.append('reading_time', duration);
         fd.append('reading_speed', wpm);
         fd.append('miscues_json', JSON.stringify(counts));
+        fd.append('answers_json', JSON.stringify(studentAnswers));
         
         // Detailed evaluation data for teacher review
         const evalData = {

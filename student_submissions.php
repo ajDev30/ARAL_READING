@@ -20,11 +20,58 @@ if (!$student) {
 }
 
 // Fetch all pre-assessment attempts for this student
+// Fetch final profile
+$stmt = $pdo->prepare("SELECT * FROM reading_profiles WHERE user_id = ?");
+$stmt->execute([$student_id]);
+$profile = $stmt->fetch();
+
+// Calculate Final Status
+$final_status = 'Pending';
+$status_bg = 'bg-slate-50 border-slate-200';
+$status_text = 'text-slate-800';
+$icon = 'fa-clock text-slate-400';
+
+if ($profile) {
+    $max_grade = 0;
+    $final_status = 'Pending';
+    
+    if ($profile['frustration_grade'] !== null && intval($profile['frustration_grade']) > $max_grade) {
+        $max_grade = intval($profile['frustration_grade']);
+        $final_status = 'Frustration';
+    }
+    if ($profile['instructional_grade'] !== null && intval($profile['instructional_grade']) > $max_grade) {
+        $max_grade = intval($profile['instructional_grade']);
+        $final_status = 'Instructional';
+    }
+    if ($profile['independent_grade'] !== null && intval($profile['independent_grade']) > $max_grade) {
+        $max_grade = intval($profile['independent_grade']);
+        $final_status = 'Independent';
+    }
+    
+    $display_verdict = $max_grade > 0 ? "$final_status — Grade $max_grade" : "Pending";
+    
+    // Set colors
+    if ($final_status === 'Frustration') {
+        $status_bg = 'bg-rose-50 border-rose-200';
+        $status_text = 'text-rose-800';
+        $icon = 'fa-exclamation-circle text-rose-500';
+    } elseif ($final_status === 'Instructional') {
+        $status_bg = 'bg-amber-50 border-amber-200';
+        $status_text = 'text-amber-800';
+        $icon = 'fa-info-circle text-amber-500';
+    } elseif ($final_status === 'Independent') {
+        $status_bg = 'bg-emerald-50 border-emerald-200';
+        $status_text = 'text-emerald-800';
+        $icon = 'fa-check-circle text-emerald-500';
+    }
+}
+
 $stmt = $pdo->prepare("
-    SELECT * 
-    FROM reading_attempts
-    WHERE user_id = ? AND phase = 'Pre-Test'
-    ORDER BY created_at DESC
+    SELECT a.*, c.title as course_title 
+    FROM reading_attempts a
+    LEFT JOIN course_assessments c ON a.passage_id = c.id AND (a.phase = 'Course-Pre-Test' OR a.phase = 'Course-Post-Test')
+    WHERE a.user_id = ?
+    ORDER BY a.created_at DESC
 ");
 $stmt->execute([$student_id]);
 $attempts = $stmt->fetchAll();
@@ -36,17 +83,75 @@ $attempts = $stmt->fetchAll();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Submissions - Teacher Dashboard</title>
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, arguments);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+            .sidebar { background-color: #1a365d; }
+        <?php $is_dark = isset($_COOKIE['theme']) && $_COOKIE['theme'] === 'dark'; ?>
+        <?php if($is_dark): ?>
+        /* Refined Slate Dark Mode */
+        body { background-color: #0f172a !important; color: #f8fafc !important; }
+        .bg-white, .bg-slate-50 { background-color: #1e293b !important; border-color: #334155 !important; color: #f8fafc !important; }
+        
+        .text-slate-800, .text-slate-700 { color: #f1f5f9 !important; }
+        .text-slate-600, .text-slate-500, .text-slate-400 { color: #cbd5e1 !important; }
+        .border-slate-200, .border-slate-100, .border-b, .border-l { border-color: #334155 !important; }
+        .border-slate-300 { border-color: #475569 !important; }
+        .sidebar { background-color: #0b1120 !important; border-right: 1px solid #1e293b !important; }
+        input, select, textarea { background-color: #0f172a !important; color: white !important; border-color: #475569 !important; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5) !important; }
+
+        /* Colored Badges / Cards Fixes */
+        .bg-blue-50, .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; color: #93c5fd !important; }
+        .text-blue-600, .text-blue-700, .text-blue-800 { color: #60a5fa !important; }
+        .border-blue-100, .border-blue-200, .border-l-blue-500 { border-color: rgba(59, 130, 246, 0.3) !important; }
+
+        .bg-emerald-50, .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.2) !important; color: #6ee7b7 !important; }
+        .text-emerald-600, .text-emerald-700, .text-emerald-800 { color: #34d399 !important; }
+        .border-emerald-100, .border-emerald-200 { border-color: rgba(16, 185, 129, 0.3) !important; }
+
+        .bg-amber-50, .bg-amber-100 { background-color: rgba(245, 158, 11, 0.2) !important; color: #fcd34d !important; }
+        .text-amber-600, .text-amber-700, .text-amber-800 { color: #fbbf24 !important; }
+        .border-amber-100, .border-amber-200 { border-color: rgba(245, 158, 11, 0.3) !important; }
+
+        .bg-rose-50, .bg-rose-100 { background-color: rgba(244, 63, 94, 0.2) !important; color: #fda4af !important; }
+        .text-rose-600, .text-rose-700, .text-rose-800 { color: #fb7185 !important; }
+        .border-rose-100, .border-rose-200 { border-color: rgba(244, 63, 94, 0.3) !important; }
+        
+        .bg-purple-50, .bg-purple-100 { background-color: rgba(168, 85, 247, 0.2) !important; color: #d8b4fe !important; }
+        .text-purple-600, .text-purple-700, .text-purple-800 { color: #c084fc !important; }
+
+        /* Bug Fixes for hover states and cards */
+        .bg-slate-100, .bg-slate-200 { background-color: #334155 !important; color: #e2e8f0 !important; }
+        .hover\:bg-slate-50:hover, tr:hover { background-color: #334155 !important; }
+        .card { background-color: #1e293b !important; border-color: #334155 !important; }
+        
+        /* Logo Fix */
+        .sidebar img { background-color: transparent !important; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.5)) !important; }
+        <?php endif; ?>
     </style>
+
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex h-screen overflow-hidden text-slate-800">
+    <?php include 'teacher_sidebar.php'; ?>
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
     
-    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
         <div class="flex items-center">
+            <button onclick="toggleSidebar()" class="md:hidden mr-4 text-slate-500 hover:text-blue-600 focus:outline-none"><i class="fas fa-bars text-xl"></i></button>
             <a href="assessment_result.php" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
             <i class="fas fa-folder-open text-blue-500 text-2xl mr-3"></i>
             <h1 class="font-bold text-lg text-slate-800">Passage Attempts: <?php echo htmlspecialchars($student['fname'] . ' ' . $student['lname']); ?></h1>
@@ -62,7 +167,38 @@ $attempts = $stmt->fetchAll();
         </div>
     </header>
 
-    <main class="flex-1 p-8 max-w-6xl mx-auto w-full overflow-y-auto">
+    <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full overflow-y-auto">
+        
+        <?php if ($profile): ?>
+        <div class="mb-6 rounded-xl border p-6 flex flex-col md:flex-row md:items-center justify-between <?php echo $status_bg; ?>">
+            <div class="flex items-center gap-4">
+                <i class="fas <?php echo $icon; ?> text-4xl"></i>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wider <?php echo $status_text; ?> opacity-80">Overall Phil-IRI Verdict</p>
+                    <h2 class="text-3xl font-black <?php echo $status_text; ?>"><?php echo $display_verdict; ?></h2>
+                </div>
+            </div>
+            <div class="flex gap-6 bg-white/60 p-4 rounded-lg border border-white/40">
+                <div class="text-center">
+                    <div class="text-xs font-bold text-emerald-600 uppercase">Independent</div>
+                    <div class="text-lg font-bold text-slate-800"><?php echo $profile['independent_grade'] ? 'Gr. ' . $profile['independent_grade'] : '—'; ?></div>
+                </div>
+                <div class="w-px bg-slate-300"></div>
+                <div class="text-center">
+                    <div class="text-xs font-bold text-amber-600 uppercase">Instructional</div>
+                    <div class="text-lg font-bold text-slate-800"><?php echo $profile['instructional_grade'] ? 'Gr. ' . $profile['instructional_grade'] : '—'; ?></div>
+                </div>
+                <div class="w-px bg-slate-300"></div>
+                <div class="text-center">
+                    <div class="text-xs font-bold text-rose-600 uppercase">Frustration</div>
+                    <div class="text-lg font-bold text-slate-800"><?php echo $profile['frustration_grade'] ? 'Gr. ' . $profile['frustration_grade'] : '—'; ?></div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php $target_user_id = $student_id; include 'comparison_widget.php'; ?>
+
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 class="text-xl font-bold text-slate-800 mb-2">Individual Passages</h2>
             <p class="text-slate-500 mb-6">Review the specific audio recordings and transcripts that generated the student's profile.</p>
@@ -87,7 +223,15 @@ $attempts = $stmt->fetchAll();
                                 $profileClass = $profile == 'Independent' ? 'bg-emerald-100 text-emerald-800' : ($profile == 'Instructional' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800');
                             ?>
                             <tr class="hover:bg-slate-50">
-                                <td class="py-3 px-4 font-bold text-slate-800">Grade <?php echo htmlspecialchars($att['passage_grade']); ?></td>
+                                <td class="py-3 px-4 font-bold text-slate-800">
+    <?php 
+        if ($att['phase'] === 'Pre-Test') {
+            echo "Phil-IRI: Grade " . htmlspecialchars($att['passage_grade']);
+        } else {
+            echo htmlspecialchars($att['course_title'] . " (" . $att['phase'] . ")");
+        }
+    ?>
+</td>
                                 <td class="py-3 px-4 text-slate-500"><?php echo $date; ?></td>
                                 <td class="py-3 px-4 font-medium"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
                                 <td class="py-3 px-4 font-medium"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
@@ -109,5 +253,15 @@ $attempts = $stmt->fetchAll();
             <?php endif; ?>
         </div>
     </main>
+
+        </div>
+<script>
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.toggle('-translate-x-full');
+            if(overlay) overlay.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

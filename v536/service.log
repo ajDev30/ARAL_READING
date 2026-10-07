@@ -1,5 +1,0 @@
-2026-10-06 15:45:33,302 [INFO] [Azure Service] starting at http://0.0.0.0:8011 SDK=1.51.2 region=southeastasia
-INFO:     Started server process [3636]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8011 (Press CTRL+C to quit)

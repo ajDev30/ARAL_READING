@@ -2,3 +2,5 @@
 /uploads/images/*
 !/uploads/images/.gitkeep
 /v536/service.log
+v536/.env
+v536/.azure-venv/

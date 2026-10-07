@@ -37,7 +37,10 @@ if ($action === 'get_status') {
         'gst_result' => $gst ? [
             'score' => (int)$gst['score'],
             'totalItems' => (int)$gst['total_items'],
-            'percentage' => (float)$gst['percentage']
+            'percentage' => (float)$gst['percentage'],
+            'starting_grade' => $gst['starting_grade'] !== null ? (int)$gst['starting_grade'] : null,
+            'needs_individual_assessment' => $gst['needs_individual_assessment'] !== null ? (int)$gst['needs_individual_assessment'] : null,
+            'gst_category' => $gst['gst_category']
         ] : null,
         'tested_grades' => $tested_grades
     ]);

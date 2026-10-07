@@ -18,7 +18,7 @@ if(!$gradeNum) $gradeNum = 7;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phil-IRI English Reading Assessment</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="v536/public/style.css">
+    <link rel="stylesheet" href="v536/public/style.css?v=2.0.25">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -161,8 +161,8 @@ if(!$gradeNum) $gradeNum = 7;
         window.STUDENT_GRADE = <?php echo $gradeNum; ?>;
     </script>
     <script src="v536/public/assessment-core.js?v=2.0.10"></script>
-    <script src="v536/public/app.js?v=2.0.22"></script>
-    <script src="v536/public/cascading-flow.js?v=2.0.22"></script>
+    <script src="v536/public/app.js?v=2.0.25"></script>
+    <script src="v536/public/cascading-flow.js?v=2.0.25"></script>
 
     <script>
         window.toggleSidebar = function() {

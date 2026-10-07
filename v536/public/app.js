@@ -117,7 +117,7 @@ function sendRealtimeCommit(reason) {
   if (!localVadBufferHasSpeech) return false;
   if (!realtimeChannelIsOpen() || !realtimeBridgeReady) return false;
   try {
-    // realtimeChannel.send(JSON.stringify({ type: "input_audio_buffer.commit" })); // Disabled for WebRTC to prevent buffer too small errors
+    realtimeChannel.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
     localVadBufferHasSpeech = false;
     if (reason) console.log(`[Realtime VAD] commit reason=${reason}`);
     return true;
@@ -1260,6 +1260,7 @@ function renderMiscueStrip(counts) {
     ["Mispronunciation","mis",counts.mispronunciation], ["Omission","om",counts.omission],
     ["Substitution","sub",counts.substitution], ["Repetition","rep",counts.repetition],
     ["Transposition","trans",counts.transposition], ["Reversal","rev",counts.reversal],
+    ["Insertion","ins",counts.insertion || 0],
     ["Self-correction","self",counts.selfCorrection || 0]
   ];
   els.miscueStrip.innerHTML = items.map(([label, cls, value]) => `<span class="miscue-chip ${cls}">${label}<b>${value}</b></span>`).join("");

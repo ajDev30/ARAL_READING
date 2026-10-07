@@ -103,23 +103,44 @@ async def get_realtime_token(request: Request):
         passage = body.get("passage", "")
         
         openai_key = os.getenv("AZURE_OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "")).strip()
-        transcription_model = os.getenv("REALTIME_TRANSCRIPTION_MODEL", "whisper-1").strip()
+        transcription_model = os.getenv("OPENAI_MODEL", os.getenv("REALTIME_TRANSCRIPTION_MODEL", "whisper-1")).strip()
         if not openai_key:
             return JSONResponse({"error": "OPENAI_API_KEY is not configured.", "stage": "configuration"}, status_code=500)
             
         import re
-        keywords = list(set([w for w in re.findall(r"[A-Za-z][A-Za-z'’-]*", passage.lower()) if len(w) >= 4]))
-        keyword_prompt = " ".join(keywords)[:200]
-            
-        user_prompt = "Student is reading a supplied passage. Use passage context only to improve recognition of names, vocabulary, and word boundaries. Transcribe ONLY audible speech. Do not autocorrect to the passage, invent or delete words, reorder, paraphrase, or summarize. Preserve repeats, restarts, substitutions, reversals, transpositions, and self-corrections; keep audible attempts separate. Pay attention to short function words (a, an, the, to, in, of, and, with), but never insert one unless audible. Prefer audio over passage context. Vocabulary words: " + keyword_prompt
+        # Replicate the exact keyword/prompt building from server.js
+        # Clean passage and extract up to 120 unique keywords
+        clean_passage = re.sub(r'\s+', ' ', passage or "").strip()[:6000]
+        raw_words = [re.sub(r"^[^a-zA-Z0-9'-]+|[^a-zA-Z0-9'-]+$", "", w) for w in clean_passage.split()]
+        raw_words = [w for w in raw_words if w]
+        unique_words = []
+        seen = set()
+        for w in raw_words:
+            k = w.lower()
+            if len(k) < 1 or k in seen:
+                continue
+            seen.add(k)
+            unique_words.append(w)
+            if len(unique_words) >= 120:
+                break
+                
+        user_prompt = (
+            "Student is reading a supplied passage. Use passage context only to improve recognition of names, vocabulary, and word boundaries. "
+            "Transcribe ONLY audible speech. Do not autocorrect to the passage, invent or delete words, reorder, paraphrase, or summarize. "
+            "Preserve repeats, restarts, substitutions, reversals, transpositions, and self-corrections; keep audible attempts separate. "
+            "Pay attention to short function words (a, an, the, to, in, of, and, with), but never insert one unless audible. Prefer audio over passage context."
+        )[:1024]
+        
         session_payload = {
             "type": "transcription",
             "audio": {
                 "input": {
                     "transcription": {
                         "model": transcription_model,
-                        "prompt": user_prompt
-                    }
+                        "prompt": user_prompt,
+                        "keywords": unique_words
+                    },
+                    "turn_detection": None
                 }
             }
         }
@@ -419,7 +440,7 @@ class AzureSession:
         except Exception:
             pass
         try:
-            self.speech_config.set_property(speechsdk.PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs, "3000")
+            self.speech_config.set_property(speechsdk.PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs, "120000")
         except Exception:
             pass
 

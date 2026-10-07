@@ -58,9 +58,9 @@ async function initializeAssessmentFlow() {
     } else {
         // Load existing state and normalize db columns to camelCase
         gstResult = status.gst_result;
-        if (gstResult && gstResult.starting_grade !== undefined) {
-            gstResult.startingGrade = parseInt(gstResult.starting_grade);
-            gstResult.needsIndividualAssessment = parseInt(gstResult.needs_individual_assessment);
+        if (gstResult) {
+            gstResult.startingGrade = gstResult.starting_grade !== null ? parseInt(gstResult.starting_grade) : null;
+            gstResult.needsIndividualAssessment = gstResult.needs_individual_assessment !== null ? parseInt(gstResult.needs_individual_assessment) : null;
             gstResult.category = gstResult.gst_category;
         }
         testedGrades = status.tested_grades || {};

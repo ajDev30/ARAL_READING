@@ -10,9 +10,6 @@ $stmt->execute([$_SESSION['user_id']]);
 $u = $stmt->fetch();
 $gradeNum = (int) filter_var($u['grade_level'], FILTER_SANITIZE_NUMBER_INT);
 if(!$gradeNum) $gradeNum = 7;
-$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
-$raw_settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-$hide_live_transcript = ($raw_settings['hide_live_transcript'] ?? '0') === '1';
 
 ?>
 <!DOCTYPE html>
@@ -22,17 +19,13 @@ $hide_live_transcript = ($raw_settings['hide_live_transcript'] ?? '0') === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phil-IRI English Reading Assessment</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="v536/public/style.css?v=2.0.26">
+    <link rel="stylesheet" href="v536/public/style.css?v=2.0.27">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <meta name="htmx-config" content='{"globalViewTransitions":true}'>
 
-    <script>
-        window.ARAL_SETTINGS = {
-            hideLiveTranscript: <?php echo $hide_live_transcript ? 'true' : 'false'; ?>
-        };
-    </script>
+    
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -90,13 +83,13 @@ $hide_live_transcript = ($raw_settings['hide_live_transcript'] ?? '0') === '1';
                 <textarea id="storyEditor" hidden></textarea>
                 
                 <div class="split-view row">
-                    <section class="reading-pane col-md-6 border-right">
+                    <section id="reading-pane-container" class="reading-pane col-md-12 border-right" style="position: relative;">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="font-weight-bold text-secondary small">PASSAGE</span>
                         </div>
                         <article id="story" class="story" style="font-size: 1.1rem; line-height:1.6;"></article>
                     </section>
-                    <section class="realtime-pane col-md-6">
+                    <section id="realtime-pane-container" class="realtime-pane col-md-6 d-none">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="font-weight-bold text-secondary small">LIVE TRANSCRIPT</span>
                         </div>
@@ -172,8 +165,8 @@ $hide_live_transcript = ($raw_settings['hide_live_transcript'] ?? '0') === '1';
         window.STUDENT_GRADE = <?php echo $gradeNum; ?>;
     </script>
     <script src="v536/public/assessment-core.js?v=2.0.10"></script>
-    <script src="v536/public/app.js?v=2.0.26"></script>
-    <script src="v536/public/cascading-flow.js?v=2.0.26"></script>
+    <script src="v536/public/app.js?v=2.0.27"></script>
+    <script src="v536/public/cascading-flow.js?v=2.0.27"></script>
 
     <script>
         window.toggleSidebar = function() {

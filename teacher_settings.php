@@ -22,8 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'tts_voice', 
         'tts_model', 
         'tts_personality',
-        'available_sections',
-        'hide_live_transcript'
+        'available_sections'
     ];
     
     // Save to DB
@@ -290,23 +289,11 @@ if ($is_enabled && $requirements_met) {
             </div>
 
             
-            <h3 class="font-bold text-slate-800 text-lg mb-2 mt-8"><i class="fas fa-desktop text-blue-500 mr-2"></i> UI & Experience</h3>
-            <div class="grid grid-cols-1 gap-6">
-                <div>
-                    <label class="flex items-center space-x-3 cursor-pointer">
-                        <input type="checkbox" name="hide_live_transcript" value="1" <?php echo ($settings['hide_live_transcript'] ?? '') == '1' ? 'checked' : ''; ?> class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                        <span class="text-sm font-medium text-slate-700">Hide Live Transcript During Reading</span>
-                    </label>
-                    <p class="text-[11px] text-slate-500 mt-1 pl-8">If enabled, students will not see the STT text appearing on their screen while they read (prevents cognitive overload). The transcript will only be revealed after they click Stop.</p>
-                </div>
-            </div>
-
             <h3 class="font-bold text-slate-800 text-lg mb-2 mt-8"><i class="fas fa-users text-blue-500 mr-2"></i> Student Sections</h3>
             <div class="grid grid-cols-1 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Available Sections (Comma-separated)</label>
-                    <textarea name="available_sections" rows="2" placeholder="e.g. Section A, Section B, Section C" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($settings['available_sections',
-        'hide_live_transcript'] ?? ''); ?></textarea>
+                    <textarea name="available_sections" rows="2" placeholder="e.g. Section A, Section B, Section C" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($settings['available_sections'] ?? ''); ?></textarea>
                     <p class="text-[11px] text-slate-500 mt-1">These sections will appear as a dropdown choice for students when they register an account.</p>
                 </div>
             </div>

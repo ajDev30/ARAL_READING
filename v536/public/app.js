@@ -188,11 +188,7 @@ function realtimeTranscriptText() {
 function renderRealtimeLiveText() {
   const text = realtimeTranscriptText();
   if (running || text) {
-    if (window.ARAL_SETTINGS && window.ARAL_SETTINGS.hideLiveTranscript && running) {
-      els.transcript.innerHTML = '<span class="empty-state" style="font-style: italic;">Live transcript is hidden during reading to prevent cognitive overload. It will be revealed when you stop recording.</span>';
-    } else {
-      els.transcript.innerHTML = text ? renderLiveTokens(text) : '<span class="empty-state">Listening for spoken words…</span>';
-    }
+    els.transcript.innerHTML = text ? renderLiveTokens(text) : '<span class="empty-state">Listening for spoken words…</span>';
   }
   if (text && running) els.hint.textContent = `Realtime is capturing ${Core.tokenize(text).length} spoken words.`;
 }
@@ -763,16 +759,31 @@ async function startRecording() {
     await stopLocalAudioCapture();
     throw new Error(`OpenAI transcription session failed to initialize: ${realtimeError || "unknown error"}`);
   }
-  els.transcript.innerHTML = `<div class="countdown-overlay">3</div>`;
+  const readingPane = document.getElementById("reading-pane-container");
+  const realtimePane = document.getElementById("realtime-pane-container");
+  
+  if (readingPane && realtimePane) {
+    readingPane.className = "reading-pane col-md-12 border-right";
+    realtimePane.classList.add("d-none");
+  }
+
+  const overlay = document.createElement("div");
+  overlay.className = "countdown-overlay-passage";
+  if (readingPane) readingPane.appendChild(overlay);
+
   for (let i = 3; i > 0; i--) {
-    if (!running) return;
+    if (!running) {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      return;
+    }
     els.hint.textContent = `Starting in ${i}...`;
-    els.transcript.innerHTML = `<div class="countdown-overlay">${i}</div>`;
+    overlay.textContent = i;
     await new Promise(r => setTimeout(r, 1000));
   }
+  if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
   if (!running) return;
+  
   els.hint.textContent = "Recording...";
-  els.transcript.innerHTML = '<span class="empty-state">Your spoken words will appear here while you read.</span>';
   await azureConnectPromise;
   if (!isCurrentAttempt(sessionId) || !running) return;
   if (mediaStream) {
@@ -813,8 +824,16 @@ async function stopRecording() {
   els.locale.disabled = true;
   stopTimer();
   setStatus("Finalizing");
-  els.hint.textContent = "Plss wait a moment finalizing";
   els.hint.textContent = "Finalizing Azure pronunciation assessment and the OpenAI transcript… Please wait before retrying.";
+
+  const readingPane = document.getElementById("reading-pane-container");
+  if (readingPane) {
+      const finOverlay = document.createElement("div");
+      finOverlay.className = "finalizing-overlay";
+      finOverlay.id = "finalizing-overlay-box";
+      finOverlay.innerHTML = `<div class="spinner-border text-primary" role="status"></div><h3 class="mt-3">Finalizing, please wait...</h3>`;
+      readingPane.appendChild(finOverlay);
+  }
 
   finalizingPromise = (async () => {
     // Stop the source immediately. AudioWorklet messages can still arrive for a
@@ -1288,6 +1307,16 @@ function avg(values) { const v = values.filter(n => Number.isFinite(n)); return 
 
 function renderAssessment(data) {
   updateStoryCount();
+
+  const finOverlay = document.getElementById("finalizing-overlay-box");
+  if (finOverlay) finOverlay.remove();
+  
+  const readingPane = document.getElementById("reading-pane-container");
+  const realtimePane = document.getElementById("realtime-pane-container");
+  if (readingPane && realtimePane) {
+      readingPane.className = "reading-pane col-md-6 border-right";
+      realtimePane.classList.remove("d-none");
+  }
 
   const realtimeText = data.realtime?.transcript || realtimeTranscriptText();
   const azureWords = data.azure?.words || [];

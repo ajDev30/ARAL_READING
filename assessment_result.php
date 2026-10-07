@@ -21,6 +21,7 @@ $profiles = $stmt->fetchAll();
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="v536/public/favicon.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assessment Results - Teacher Dashboard</title>

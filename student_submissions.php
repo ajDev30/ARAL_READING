@@ -235,7 +235,7 @@ $attempts = $stmt->fetchAll();
                                 <td class="py-3 px-4 text-slate-500"><?php echo $date; ?></td>
                                 <td class="py-3 px-4 font-medium"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
                                 <td class="py-3 px-4 font-medium"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
-                                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-xs font-medium <?php echo $profileClass; ?>"><?php echo $profile; ?></span></td>
+                                <td class="py-3 px-4"><span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium <?php echo $profileClass; ?>"><?php echo $profile; ?></span></td>
                                 <td class="py-3 px-4 text-right">
                                     <a href="review_detail.php?id=<?php echo $att['id']; ?>&sid=<?php echo $student_id; ?>" class="inline-flex items-center px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded text-xs font-medium transition">
                                         <i class="fas fa-headphones mr-1.5"></i> Review Audio

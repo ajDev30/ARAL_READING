@@ -15,7 +15,7 @@ if (!$grade) {
     <!DOCTYPE html>
     <html lang="en">
     <head>
-    <link rel="icon" type="image/svg+xml" href="v536/public/favicon.svg">
+    <link rel="icon" type="image/png" href="https://tibungcodistrict.wordpress.com/wp-content/uploads/2018/06/untitled-1.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta charset="UTF-8">
         <title>Manage English Passages</title>
@@ -169,7 +169,7 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" type="image/svg+xml" href="v536/public/favicon.svg">
+    <link rel="icon" type="image/png" href="https://tibungcodistrict.wordpress.com/wp-content/uploads/2018/06/untitled-1.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <title>Edit <?php echo htmlspecialchars($grade); ?> Passage</title>

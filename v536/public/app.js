@@ -188,7 +188,11 @@ function realtimeTranscriptText() {
 function renderRealtimeLiveText() {
   const text = realtimeTranscriptText();
   if (running || text) {
-    els.transcript.innerHTML = text ? renderLiveTokens(text) : '<span class="empty-state">Listening for spoken words…</span>';
+    if (window.ARAL_SETTINGS && window.ARAL_SETTINGS.hideLiveTranscript && running) {
+      els.transcript.innerHTML = '<span class="empty-state" style="font-style: italic;">Live transcript is hidden during reading to prevent cognitive overload. It will be revealed when you stop recording.</span>';
+    } else {
+      els.transcript.innerHTML = text ? renderLiveTokens(text) : '<span class="empty-state">Listening for spoken words…</span>';
+    }
   }
   if (text && running) els.hint.textContent = `Realtime is capturing ${Core.tokenize(text).length} spoken words.`;
 }

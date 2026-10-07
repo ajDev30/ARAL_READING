@@ -10,6 +10,10 @@ $stmt->execute([$_SESSION['user_id']]);
 $u = $stmt->fetch();
 $gradeNum = (int) filter_var($u['grade_level'], FILTER_SANITIZE_NUMBER_INT);
 if(!$gradeNum) $gradeNum = 7;
+$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+$raw_settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+$hide_live_transcript = ($raw_settings['hide_live_transcript'] ?? '0') === '1';
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -18,11 +22,18 @@ if(!$gradeNum) $gradeNum = 7;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phil-IRI English Reading Assessment</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="v536/public/style.css?v=2.0.25">
+    <link rel="stylesheet" href="v536/public/style.css?v=2.0.26">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+
+    <script>
+        window.ARAL_SETTINGS = {
+            hideLiveTranscript: <?php echo $hide_live_transcript ? 'true' : 'false'; ?>
+        };
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light is-uninitialized">
@@ -161,8 +172,8 @@ if(!$gradeNum) $gradeNum = 7;
         window.STUDENT_GRADE = <?php echo $gradeNum; ?>;
     </script>
     <script src="v536/public/assessment-core.js?v=2.0.10"></script>
-    <script src="v536/public/app.js?v=2.0.25"></script>
-    <script src="v536/public/cascading-flow.js?v=2.0.25"></script>
+    <script src="v536/public/app.js?v=2.0.26"></script>
+    <script src="v536/public/cascading-flow.js?v=2.0.26"></script>
 
     <script>
         window.toggleSidebar = function() {

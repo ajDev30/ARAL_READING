@@ -25,11 +25,14 @@ $stmt->execute([$user_id]);
 $profile = $stmt->fetch();
 
 $target_grade = null;
+$student_profile_type = null;
 if ($profile) {
     if ($profile['instructional_grade'] !== null) {
         $target_grade = $profile['instructional_grade'];
+        $student_profile_type = 'Instructional';
     } elseif ($profile['frustration_grade'] !== null) {
         $target_grade = $profile['frustration_grade'];
+        $student_profile_type = 'Frustration';
     }
 }
 
@@ -38,9 +41,9 @@ $stmt = $pdo->query("SELECT * FROM course_assessments WHERE status = 'Published'
 $all_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $courses = [];
-if ($target_grade !== null) {
+if ($target_grade !== null && $student_profile_type !== null) {
     foreach ($all_courses as $c) {
-        if (preg_match('/GRADE ' . $target_grade . '\b/i', $c['title'])) {
+        if ($c['target_profile'] === $student_profile_type && preg_match('/GRADE ' . $target_grade . '\b/i', $c['title'])) {
             $courses[] = $c;
         }
     }

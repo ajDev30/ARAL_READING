@@ -253,7 +253,7 @@ $answers_json = $attempt['answers_json'] ?: '{}';
         let rawReviewData = <?php echo json_encode($eval_data); ?>;
         window.reviewData = typeof rawReviewData === 'string' ? (rawReviewData ? JSON.parse(rawReviewData) : {}) : rawReviewData;
         const attemptId = <?php echo $attempt_id; ?>;
-        let activeAssessment = window.reviewData?.assessment;
+        let activeAssessment = window.reviewData ? window.reviewData.assessment : null;
         
         let rawQJson = <?php echo json_encode($q_json); ?>;
         const qJson = typeof rawQJson === 'string' ? (rawQJson ? JSON.parse(rawQJson) : []) : rawQJson;

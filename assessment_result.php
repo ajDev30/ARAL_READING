@@ -125,7 +125,7 @@ $profiles = $stmt->fetchAll();
                                 <th class="py-3 px-4 font-medium text-emerald-600">Independent</th>
                                 <th class="py-3 px-4 font-medium text-amber-600">Instructional</th>
                                 <th class="py-3 px-4 font-medium text-rose-600">Frustration</th>
-                                <th class="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">Overall Status</th>
+                                <th class="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">Oral Reading</th>
                                 <th class="py-3 px-4 font-medium text-right">Action</th>
                             </tr>
                         </thead>
@@ -133,24 +133,21 @@ $profiles = $stmt->fetchAll();
                             <?php foreach($profiles as $prof): 
                                 $date = date('M d, Y g:i A', strtotime($prof['updated_at']));
                                 
-                                // Calculate Overall Final Status based on Highest Tested Grade in Profile
-                                $max_grade = 0;
+                                // Calculate Phil-IRI Oral Reading Profile based on Enrolled Grade Level
+                                $enrolled_grade = intval(preg_replace('/[^0-9]/', '', $prof['grade_level']));
                                 $final_status = 'Pending';
                                 
-                                if ($prof['frustration_grade'] !== null && intval($prof['frustration_grade']) > $max_grade) {
-                                    $max_grade = intval($prof['frustration_grade']);
-                                    $final_status = 'Frustration';
-                                }
-                                if ($prof['instructional_grade'] !== null && intval($prof['instructional_grade']) > $max_grade) {
-                                    $max_grade = intval($prof['instructional_grade']);
-                                    $final_status = 'Instructional';
-                                }
-                                if ($prof['independent_grade'] !== null && intval($prof['independent_grade']) > $max_grade) {
-                                    $max_grade = intval($prof['independent_grade']);
-                                    $final_status = 'Independent';
+                                if ($prof['independent_grade'] !== null || $prof['instructional_grade'] !== null || $prof['frustration_grade'] !== null) {
+                                    if ($prof['independent_grade'] !== null && $enrolled_grade <= intval($prof['independent_grade'])) {
+                                        $final_status = 'Independent';
+                                    } elseif ($prof['instructional_grade'] !== null && $enrolled_grade <= intval($prof['instructional_grade'])) {
+                                        $final_status = 'Instructional';
+                                    } else {
+                                        $final_status = 'Frustration';
+                                    }
                                 }
                                 
-                                $display_verdict = $max_grade > 0 ? "$final_status — Grade $max_grade" : "Pending";
+                                $display_verdict = $final_status;
                                 
                                 $status_color = 'bg-slate-100 text-slate-800';
                                 if ($final_status === 'Frustration') $status_color = 'bg-rose-100 text-rose-800';

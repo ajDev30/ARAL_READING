@@ -250,12 +250,14 @@ $answers_json = $attempt['answers_json'] ?: '{}';
     <script src="v536/public/assessment-core.js?v=2.0.12"></script>
     <script src="v536/public/app.js?v=2.0.15"></script>
     <script>
-        window.reviewData = <?php echo $eval_data; ?>;
+        let rawReviewData = <?php echo json_encode($eval_data); ?>;
+        window.reviewData = typeof rawReviewData === 'string' ? (rawReviewData ? JSON.parse(rawReviewData) : {}) : rawReviewData;
         const attemptId = <?php echo $attempt_id; ?>;
         let activeAssessment = window.reviewData?.assessment;
         
+        let rawQJson = <?php echo json_encode($q_json); ?>;
+        const qJson = typeof rawQJson === 'string' ? (rawQJson ? JSON.parse(rawQJson) : []) : rawQJson;
         
-        const qJson = <?php echo $q_json; ?>;
         let rawAns = <?php echo json_encode($answers_json); ?>;
         const aJson = typeof rawAns === 'string' ? (rawAns ? JSON.parse(rawAns) : {}) : rawAns;
         

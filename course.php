@@ -146,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
         <div class="flex items-center">
             <a href="dashboard_teacher.php" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
             <i class="fas fa-chalkboard-teacher text-blue-600 text-2xl mr-3"></i>
-            <h1 class="font-bold text-lg text-slate-800">Course Assessments (Intervention)</h1>
+            <h1 class="font-bold text-lg text-slate-800">Course Assessments</h1>
         </div>
         <a href="course.php?action=edit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow text-sm">
             <i class="fas fa-plus mr-2"></i> Create New Test
@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
                 </div>
             <?php else: ?>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table id="courseTable" class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
                                 <th class="p-4 border-b font-semibold">Title</th>
@@ -651,6 +651,22 @@ renderQ();
     <?php endif; ?>
 
         </div>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script>
+    $(document).ready(function() {
+        if ($('#courseTable').length) {
+            $('#courseTable').DataTable({
+                "pageLength": 10,
+                "language": {
+                    "search": "Search:"
+                }
+            });
+        }
+    });
+</script>
+
 <script>
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('appSidebar');

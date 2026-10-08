@@ -26,12 +26,10 @@ $profile = $stmt->fetch();
 
 // Fetch Grades/Attempts
 $stmt = $pdo->prepare("
-    SELECT a.*, 
-           COALESCE(p.title, c.title) as passage_title
+    SELECT a.*, p.title as passage_title
     FROM reading_attempts a
-    LEFT JOIN reading_passages p ON a.passage_id = p.id AND a.phase = 'Pre-Test'
-    LEFT JOIN course_assessments c ON a.passage_id = c.id AND a.phase != 'Pre-Test'
-    WHERE a.user_id = ?
+    LEFT JOIN reading_passages p ON a.passage_id = p.id
+    WHERE a.user_id = ? AND a.phase IN ('Pre-Test', 'Post-Test', 'GST')
     ORDER BY a.created_at DESC
 ");
 $stmt->execute([$user_id]);
@@ -153,7 +151,7 @@ $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- Grades Table -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-6 border-b border-slate-100">
-                    <h3 class="font-bold text-slate-800 text-lg">Assessment History</h3>
+                    <h3 class="font-bold text-slate-800 text-lg">Phil-IRI Assessment History (GST & Graded Passages)</h3>
                 </div>
                 
                 <?php if(empty($attempts)): ?>

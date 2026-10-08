@@ -119,7 +119,7 @@ $students = $stmt->fetchAll();
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <?php if(count($students) > 0): ?>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table id="gradesTable" class="w-full text-left border-collapse">
                                 <thead>
                                     <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
                                         <th class="py-3 px-4">Student Name</th>
@@ -168,6 +168,22 @@ $students = $stmt->fetchAll();
             </div>
         </main>
     </div>
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            if ($('#gradesTable').length) {
+                $('#gradesTable').DataTable({
+                    "pageLength": 10,
+                    "language": {
+                        "search": "Search:"
+                    }
+                });
+            }
+        });
+    </script>
     <script>
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('appSidebar');

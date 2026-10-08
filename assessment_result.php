@@ -116,7 +116,7 @@ $profiles = $stmt->fetchAll();
             
             <?php if (count($profiles) > 0): ?>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left border-collapse">
+                    <table id="assessmentTable" class="w-full text-sm text-left border-collapse">
                         <thead class="text-xs text-slate-500 bg-slate-50 border-y border-slate-200">
                             <tr>
                                 <th class="py-3 px-4 font-medium">Student</th>
@@ -185,6 +185,21 @@ $profiles = $stmt->fetchAll();
     </main>
 
         </div>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script>
+    $(document).ready(function() {
+        if ($('#assessmentTable').length) {
+            $('#assessmentTable').DataTable({
+                "pageLength": 10,
+                "language": {
+                    "search": "Search:"
+                }
+            });
+        }
+    });
+</script>
 <script>
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('appSidebar');

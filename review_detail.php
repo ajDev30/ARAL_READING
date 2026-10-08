@@ -215,7 +215,7 @@ $has_ops = strpos($eval_data, 'ops') !== false;
         <button id="startBtn"></button><button id="stopBtn"></button><button id="resetBtn"></button><button id="editStoryBtn"></button><button id="restartBtn"></button><button id="diagBtn"></button><div id="diagModal"></div><button id="closeDiagBtn"></button><div id="diagContent"></div><select id="locale"></select>
         <span id="statusPill"></span><span id="hint"></span><h4 id="timer"></h4><div id="meterBar"></div><span id="vadDot"></span><span id="liveBadge"></span><h4 id="storyWordCount"></h4><span id="wordBadge"></span>
     </div>
-    <div id="tooltip"></div>
+    <div id="tooltip" class="word-tooltip" role="tooltip" hidden></div>
 
     <!-- Override Modal -->
     <div id="overrideModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50">

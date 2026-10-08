@@ -14,10 +14,18 @@ $c_attempts = $stmtC->fetchAll(PDO::FETCH_ASSOC);
 
 $pairs = [];
 foreach($c_attempts as $a) {
-    $pid = $a['passage_id'];
-    if(!isset($pairs[$pid])) {
-        $pairs[$pid] = [
-            'title' => $a['title'],
+    // Extract Course Grade or Title group (e.g. "GRADE 7" from "GRADE 7 - PRE-TEST ...")
+    $courseGroup = 'Course Assessment';
+    if (preg_match('/^(.*?)(?:\s*(?:—|-)\s*(?:PRE-TEST|POST-TEST))/i', $a['title'], $matches)) {
+        $courseGroup = trim($matches[1]);
+    } else {
+        // Fallback if title doesn't match expected pattern
+        $courseGroup = $a['title'];
+    }
+
+    if(!isset($pairs[$courseGroup])) {
+        $pairs[$courseGroup] = [
+            'title' => $courseGroup,
             'pre' => null,
             'post' => null
         ];
@@ -37,9 +45,9 @@ foreach($c_attempts as $a) {
     ];
 
     if($a['phase'] === 'Course-Pre-Test') {
-        $pairs[$pid]['pre'] = $data;
+        $pairs[$courseGroup]['pre'] = $data;
     } else {
-        $pairs[$pid]['post'] = $data;
+        $pairs[$courseGroup]['post'] = $data;
     }
 }
 

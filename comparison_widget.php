@@ -39,12 +39,30 @@ $pairs = [];
 
 // Process courses
 foreach($c_attempts as $att) {
-    $key = 'course_' . $att['passage_id'];
-    if(!isset($pairs[$key])) {
-        $pairs[$key] = ['title' => 'Course: ' . $att['title'], 'total' => getTotalItemsFromJSON($att['questions_json']), 'pre' => null, 'post' => null];
+    if (preg_match('/GRADE (\d+)/i', $att['title'], $matches)) {
+        $grade = $matches[1];
+        $key = 'grade_' . $grade;
+        
+        if(!isset($pairs[$key])) {
+            $pairs[$key] = [
+                'title' => 'Grade ' . $grade . ' Reading Module', 
+                'total' => 0, 
+                'pre' => null, 
+                'post' => null
+            ];
+        }
+        
+        if($att['phase'] === 'Course-Pre-Test') {
+            $pairs[$key]['pre'] = $att['comprehension_score'];
+            $pairs[$key]['total'] = getTotalItemsFromJSON($att['questions_json']);
+        } else {
+            $pairs[$key]['post'] = $att['comprehension_score'];
+            // If pre-test wasn't taken, use post-test total
+            if ($pairs[$key]['total'] == 0) {
+                $pairs[$key]['total'] = getTotalItemsFromJSON($att['questions_json']);
+            }
+        }
     }
-    if($att['phase'] === 'Course-Pre-Test') $pairs[$key]['pre'] = $att['comprehension_score'];
-    else $pairs[$key]['post'] = $att['comprehension_score'];
 }
 
 
@@ -53,7 +71,7 @@ foreach($c_attempts as $att) {
 // Let's show all that have BOTH, or if they only have Pre-Test, show it as Pending Post-Test.
 $has_pairs = false;
 foreach($pairs as $p) {
-    if($p['pre'] !== null && $p['post'] !== null) {
+    if($p['pre'] !== null || $p['post'] !== null) {
         $has_pairs = true;
         break;
     }
@@ -63,28 +81,42 @@ if ($has_pairs):
 ?>
 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
     <div class="p-6 border-b border-slate-100 bg-blue-50/50">
-        <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-chart-line text-blue-500 mr-2"></i> Progress & Recommendations</h3>
-        <p class="text-sm text-slate-500 mt-1">Comparison of Pre-Test and Post-Test scores.</p>
+        <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-chart-line text-blue-500 mr-2"></i> Module Progress</h3>
+        <p class="text-sm text-slate-500 mt-1">Scores for your Reading Modules (Pre-Test vs Post-Test).</p>
     </div>
     <div class="p-6">
         <div class="space-y-6">
             <?php foreach($pairs as $p): 
-                if ($p['pre'] === null || $p['post'] === null) continue; 
+                if ($p['pre'] === null && $p['post'] === null) continue; 
                 
                 $total = $p['total'];
-                // Prevent division by zero logic issues if total is 0
                 if ($total <= 0) $total = 1; 
 
-                $prePct = floatval($p['pre']);
-                $postPct = floatval($p['post']);
+                $hasPre = $p['pre'] !== null;
+                $hasPost = $p['post'] !== null;
                 
-                $preRaw = round(($prePct / 100) * $total);
-                $postRaw = round(($postPct / 100) * $total);
+                $prePct = $hasPre ? floatval($p['pre']) : 0;
+                $postPct = $hasPost ? floatval($p['post']) : 0;
                 
-                $diffRaw = $postRaw - $preRaw;
-                $diffPct = $postPct - $prePct;
+                $preRaw = $hasPre ? round(($prePct / 100) * $total) : 0;
+                $postRaw = $hasPost ? round(($postPct / 100) * $total) : 0;
                 
-                if ($postPct > $prePct) {
+                $diffRaw = ($hasPre && $hasPost) ? ($postRaw - $preRaw) : 0;
+                $diffPct = ($hasPre && $hasPost) ? ($postPct - $prePct) : 0;
+                
+                if (!$hasPost) {
+                    $resultText = 'In Progress';
+                    $resultColor = 'text-blue-600';
+                    $resultBg = 'bg-blue-50 border-blue-200';
+                    $icon = 'fa-spinner text-blue-500';
+                    $rec = "The student has completed the Pre-Test. They should now review the course material and proceed to take the Post-Test when ready.";
+                } else if (!$hasPre) {
+                    $resultText = 'Post-Test Only';
+                    $resultColor = 'text-slate-600';
+                    $resultBg = 'bg-slate-50 border-slate-200';
+                    $icon = 'fa-check text-slate-500';
+                    $rec = "The student completed the Post-Test without a recorded Pre-Test. Their final score is displayed above.";
+                } else if ($postPct > $prePct) {
                     $resultText = 'Improved';
                     $resultColor = 'text-emerald-600';
                     $resultBg = 'bg-emerald-50 border-emerald-200';
@@ -111,33 +143,47 @@ if ($has_pairs):
                     <!-- Pre Test -->
                     <div class="bg-white p-4 rounded border border-slate-200 text-center">
                         <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pre-Test</div>
-                        <div class="text-2xl font-black text-slate-800"><?php echo $preRaw; ?>/<?php echo $total; ?></div>
-                        <div class="text-sm font-semibold text-slate-500"><?php echo number_format($prePct, 1); ?>%</div>
+                        <?php if ($hasPre): ?>
+                            <div class="text-2xl font-black text-slate-800"><?php echo $preRaw; ?>/<?php echo $total; ?></div>
+                            <div class="text-sm font-semibold text-slate-500"><?php echo number_format($prePct, 1); ?>%</div>
+                        <?php else: ?>
+                            <div class="text-2xl font-black text-slate-400">—</div>
+                            <div class="text-sm font-semibold text-slate-400">Not Taken</div>
+                        <?php endif; ?>
                     </div>
                     
                     <!-- Post Test -->
                     <div class="bg-white p-4 rounded border border-slate-200 text-center">
                         <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Post-Test</div>
-                        <div class="text-2xl font-black text-slate-800"><?php echo $postRaw; ?>/<?php echo $total; ?></div>
-                        <div class="text-sm font-semibold text-slate-500"><?php echo number_format($postPct, 1); ?>%</div>
+                        <?php if ($hasPost): ?>
+                            <div class="text-2xl font-black text-slate-800"><?php echo $postRaw; ?>/<?php echo $total; ?></div>
+                            <div class="text-sm font-semibold text-slate-500"><?php echo number_format($postPct, 1); ?>%</div>
+                        <?php else: ?>
+                            <div class="text-2xl font-black text-slate-400">—</div>
+                            <div class="text-sm font-semibold text-slate-400">Pending</div>
+                        <?php endif; ?>
                     </div>
                     
                     <!-- Improvement -->
                     <div class="bg-white p-4 rounded border border-slate-200 text-center relative overflow-hidden">
                         <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Improvement</div>
-                        <div class="text-2xl font-black <?php echo $resultColor; ?>">
-                            <?php echo $diffRaw > 0 ? '+' : ''; ?><?php echo $diffRaw; ?> <span class="text-sm font-medium text-slate-500">items</span>
-                        </div>
-                        <div class="text-sm font-bold <?php echo $resultColor; ?>">
-                            <?php echo $diffPct > 0 ? '+' : ''; ?><?php echo number_format($diffPct, 1); ?> percentage points
-                        </div>
+                        <?php if ($hasPre && $hasPost): ?>
+                            <div class="text-2xl font-black <?php echo $resultColor; ?>">
+                                <?php echo $diffRaw > 0 ? '+' : ''; ?><?php echo $diffRaw; ?> <span class="text-sm font-medium text-slate-500">items</span>
+                            </div>
+                            <div class="text-sm font-bold <?php echo $resultColor; ?>">
+                                <?php echo $diffPct > 0 ? '+' : ''; ?><?php echo number_format($diffPct, 1); ?> percentage points
+                            </div>
+                        <?php else: ?>
+                            <div class="text-xl font-bold text-slate-400 mt-2">N/A</div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 
                 <div class="flex flex-col md:flex-row gap-4">
                     <div class="md:w-1/3 p-4 rounded border <?php echo $resultBg; ?> flex items-center justify-center">
                         <i class="fas <?php echo $icon; ?> text-2xl mr-3"></i>
-                        <span class="text-xl font-black uppercase tracking-wider <?php echo $resultColor; ?>"><?php echo $resultText; ?></span>
+                        <span class="text-xl font-black uppercase tracking-wider <?php echo $resultColor; ?> text-center"><?php echo $resultText; ?></span>
                     </div>
                     <div class="md:w-2/3 p-4 rounded border border-slate-200 bg-white">
                         <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Recommendation</div>

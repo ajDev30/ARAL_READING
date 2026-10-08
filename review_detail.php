@@ -250,15 +250,16 @@ $answers_json = $attempt['answers_json'] ?: '{}';
     <script src="v536/public/assessment-core.js?v=2.0.12"></script>
     <script src="v536/public/app.js?v=2.0.15"></script>
     <script>
-        let rawReviewData = <?php echo json_encode($eval_data); ?>;
+        // Use JSON constants to safely encode data without causing JS SyntaxErrors (e.g. escaping apostrophes, tags, ampersands, and double quotes)
+        let rawReviewData = <?php echo json_encode($eval_data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         window.reviewData = typeof rawReviewData === 'string' ? (rawReviewData ? JSON.parse(rawReviewData) : {}) : rawReviewData;
         const attemptId = <?php echo $attempt_id; ?>;
         let activeAssessment = window.reviewData ? window.reviewData.assessment : null;
         
-        let rawQJson = <?php echo json_encode($q_json); ?>;
+        let rawQJson = <?php echo json_encode($q_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const qJson = typeof rawQJson === 'string' ? (rawQJson ? JSON.parse(rawQJson) : []) : rawQJson;
         
-        let rawAns = <?php echo json_encode($answers_json); ?>;
+        let rawAns = <?php echo json_encode($answers_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const aJson = typeof rawAns === 'string' ? (rawAns ? JSON.parse(rawAns) : {}) : rawAns;
         
         function renderComprehensionReview() {
@@ -270,14 +271,17 @@ $answers_json = $attempt['answers_json'] ?: '{}';
             
             let html = '';
             qJson.forEach((q, idx) => {
-                const sAns = aJson[idx];
+                let sAns = aJson[idx]; // CHANGED to let so it can be reassigned
                 const pts = q.type === 'essay' ? (parseInt(q.points) || 30) : 1;
                 
                 // For auto-graded types, just show the score (1 or 0)
                 // For essays, allow teacher to input score
                 
                 let rawStudentAns = sAns;
-                if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) { rawStudentAns = sAns.answer; sAns = sAns.answer; }
+                if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) { 
+                    rawStudentAns = sAns.answer; 
+                    sAns = sAns.answer; 
+                }
                 
                 let isCorrect = false;
                 let sAnsDisplay = rawStudentAns;

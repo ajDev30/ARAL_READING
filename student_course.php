@@ -19,9 +19,32 @@ if ($level === 'Independent') {
     die("You have reached Independent level and do not need to take these courses.");
 }
 
-// Fetch published course assessments
+// Fetch student's target grade from profile
+$stmt = $pdo->prepare("SELECT * FROM reading_profiles WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$profile = $stmt->fetch();
+
+$target_grade = null;
+if ($profile) {
+    if ($profile['instructional_grade'] !== null) {
+        $target_grade = $profile['instructional_grade'];
+    } elseif ($profile['frustration_grade'] !== null) {
+        $target_grade = $profile['frustration_grade'];
+    }
+}
+
+// Fetch published course assessments matching the target grade
 $stmt = $pdo->query("SELECT * FROM course_assessments WHERE status = 'Published' ORDER BY created_at ASC");
-$courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$all_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$courses = [];
+if ($target_grade !== null) {
+    foreach ($all_courses as $c) {
+        if (preg_match('/GRADE ' . $target_grade . '\b/i', $c['title'])) {
+            $courses[] = $c;
+        }
+    }
+}
 
 // Fetch student's attempts for course assessments
 $stmt = $pdo->prepare("SELECT passage_id, phase, accuracy_score, comprehension_score, oral_reading_profile, created_at FROM reading_attempts WHERE user_id = ? AND phase IN ('Course-Pre-Test', 'Course-Post-Test')");

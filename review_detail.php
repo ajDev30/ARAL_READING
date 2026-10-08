@@ -111,7 +111,7 @@ $answers_json = $attempt['answers_json'] ?: '{}';
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800">
     <?php include 'teacher_sidebar.php'; ?>
-    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+    <div class="flex-1 flex flex-col h-screen overflow-y-auto">
     <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8">
         <div class="flex items-center">
             <?php 
@@ -256,7 +256,8 @@ $answers_json = $attempt['answers_json'] ?: '{}';
         
         
         const qJson = <?php echo $q_json; ?>;
-        const aJson = JSON.parse(<?php echo json_encode($answers_json); ?> || '{}');
+        let rawAns = <?php echo json_encode($answers_json); ?>;
+        const aJson = typeof rawAns === 'string' ? (rawAns ? JSON.parse(rawAns) : {}) : rawAns;
         
         function renderComprehensionReview() {
             const container = document.getElementById('comprehensionList');

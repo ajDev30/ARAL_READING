@@ -19,26 +19,36 @@ if ($level === 'Independent') {
     die("You have reached Independent level and do not need to take these courses.");
 }
 
-// Fetch student's target grade from profile
+// Fetch student's reading profile
 $stmt = $pdo->prepare("SELECT * FROM reading_profiles WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $profile = $stmt->fetch();
+
+// Determine the student's enrolled grade
+$enrolled_grade = (int) preg_replace("/[^0-9]/", "", $user['grade_level']);
+
+// Determine if the student is overall a Frustration or Instructional reader for their grade
+$overall_profile = 'Instructional';
+if ($profile && $profile['instructional_grade'] !== null) {
+    if ($profile['instructional_grade'] < $enrolled_grade) {
+        $overall_profile = 'Frustration';
+    } else {
+        $overall_profile = 'Instructional';
+    }
+}
 
 // Fetch published course assessments
 $stmt = $pdo->query("SELECT * FROM course_assessments WHERE status = 'Published' ORDER BY created_at ASC");
 $all_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $courses = [];
-if ($profile) {
-    foreach ($all_courses as $c) {
-        $c_grade = $c['target_grade'] ?? null;
-        $c_profile = $c['target_profile'] ?? null;
-        
-        if ($c_profile === 'Instructional' && $profile['instructional_grade'] !== null && $c_grade == $profile['instructional_grade']) {
-            $courses[] = $c;
-        } else if ($c_profile === 'Frustration' && $profile['frustration_grade'] !== null && $c_grade == $profile['frustration_grade']) {
-            $courses[] = $c;
-        }
+foreach ($all_courses as $c) {
+    $c_grade = $c['target_grade'] ?? null;
+    $c_profile = $c['target_profile'] ?? null;
+    
+    // Show the course if it matches their enrolled grade AND their computed overall profile
+    if ($c_grade == $enrolled_grade && $c_profile === $overall_profile) {
+        $courses[] = $c;
     }
 }
 

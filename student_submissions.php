@@ -32,23 +32,21 @@ $status_text = 'text-slate-800';
 $icon = 'fa-clock text-slate-400';
 
 if ($profile) {
-    $max_grade = 0;
+    // Calculate Phil-IRI Oral Reading Profile based on Enrolled Grade Level
+    $enrolled_grade = intval(preg_replace('/[^0-9]/', '', $student['grade_level']));
     $final_status = 'Pending';
     
-    if ($profile['frustration_grade'] !== null && intval($profile['frustration_grade']) > $max_grade) {
-        $max_grade = intval($profile['frustration_grade']);
-        $final_status = 'Frustration';
-    }
-    if ($profile['instructional_grade'] !== null && intval($profile['instructional_grade']) > $max_grade) {
-        $max_grade = intval($profile['instructional_grade']);
-        $final_status = 'Instructional';
-    }
-    if ($profile['independent_grade'] !== null && intval($profile['independent_grade']) > $max_grade) {
-        $max_grade = intval($profile['independent_grade']);
-        $final_status = 'Independent';
+    if ($profile['independent_grade'] !== null || $profile['instructional_grade'] !== null || $profile['frustration_grade'] !== null) {
+        if ($profile['independent_grade'] !== null && $enrolled_grade <= intval($profile['independent_grade'])) {
+            $final_status = 'Independent';
+        } elseif ($profile['instructional_grade'] !== null && $enrolled_grade <= intval($profile['instructional_grade'])) {
+            $final_status = 'Instructional';
+        } else {
+            $final_status = 'Frustration';
+        }
     }
     
-    $display_verdict = $max_grade > 0 ? "$final_status — Grade $max_grade" : "Pending";
+    $display_verdict = $final_status;
     
     // Set colors
     if ($final_status === 'Frustration') {
@@ -175,7 +173,7 @@ $attempts = $stmt->fetchAll();
             <div class="flex items-center gap-4">
                 <i class="fas <?php echo $icon; ?> text-4xl"></i>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wider <?php echo $status_text; ?> opacity-80">Overall Phil-IRI Verdict</p>
+                    <p class="text-sm font-semibold uppercase tracking-wider <?php echo $status_text; ?> opacity-80">Oral Reading</p>
                     <h2 class="text-3xl font-black <?php echo $status_text; ?>"><?php echo $display_verdict; ?></h2>
                 </div>
             </div>

@@ -176,10 +176,6 @@ $phase = $test['test_type'] === 'Pre-Test' ? 'Course-Pre-Test' : 'Course-Post-Te
 </div>
 
 
-    <dialog id="diagModal"><button id="closeDiagBtn"></button><div id="diagContent"></div></dialog>
-    <div id="tooltip"></div>
-</div>
-
 <script>
 window.azureToken = "<?php echo $azure_token; ?>";
 const courseQuestions = <?php echo $test['questions_json']; ?>;

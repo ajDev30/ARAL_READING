@@ -106,11 +106,11 @@ function updateStoryCount() {
 }
 
 function updateVadUi() {
-  els.vadDot.className = `dot ${realtimeVadState === "speech" ? "speech" : realtimeError ? "error" : ""}`;
-  if (realtimeVadState === "speech") els.liveBadge.textContent = "Speaking";
-  else if (realtimeError) els.liveBadge.textContent = "Realtime error";
-  else if (running) els.liveBadge.textContent = "Listening";
-  else els.liveBadge.textContent = "Realtime";
+  if (els.vadDot) els.vadDot.className = `dot ${realtimeVadState === "speech" ? "speech" : realtimeError ? "error" : ""}`;
+  if (realtimeVadState === "speech") { if(els.liveBadge) els.liveBadge.textContent = "Speaking"; }
+  else if (realtimeError) { if(els.liveBadge) els.liveBadge.textContent = "Realtime error"; }
+  else if (running) { if(els.liveBadge) els.liveBadge.textContent = "Listening"; }
+  else { if(els.liveBadge) els.liveBadge.textContent = "Realtime"; }
 }
 
 function sendRealtimeCommit(reason) {

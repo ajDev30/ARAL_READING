@@ -158,22 +158,11 @@ $has_ops = strpos($eval_data, 'ops') !== false;
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">Accuracy</div>
-                        <h4 id="readingAccuracy" class="text-xl font-bold text-slate-800 <?php echo !$has_ops ? 'hidden' : ''; ?>"><?php echo number_format($attempt['accuracy_score'], 1); ?>%</h4>
-                        <?php if (!$has_ops): ?>
-                            <div class="flex items-center justify-center mt-1">
-                                <input type="number" id="manualAccuracy" value="<?php echo number_format($attempt['accuracy_score'], 1); ?>" class="w-20 border border-slate-300 rounded px-2 py-1 text-center outline-none focus:border-blue-500">
-                                <span class="ml-1 font-bold text-slate-500">%</span>
-                            </div>
-                        <?php endif; ?>
+                        <h4 id="readingAccuracy" class="text-xl font-bold text-slate-800"><?php echo number_format($attempt['accuracy_score'], 1); ?>%</h4>
                     </div>
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">WCPM</div>
-                        <h4 id="wpm" class="text-xl font-bold text-slate-800 <?php echo !$has_ops ? 'hidden' : ''; ?>"><?php echo number_format($attempt['reading_speed'], 1); ?></h4>
-                        <?php if (!$has_ops): ?>
-                            <div class="flex items-center justify-center mt-1">
-                                <input type="number" id="manualWCPM" value="<?php echo number_format($attempt['reading_speed'], 1); ?>" class="w-20 border border-slate-300 rounded px-2 py-1 text-center outline-none focus:border-blue-500">
-                            </div>
-                        <?php endif; ?>
+                        <h4 id="wpm" class="text-xl font-bold text-slate-800"><?php echo number_format($attempt['reading_speed'], 1); ?></h4>
                     </div>
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">Comprehension</div>
@@ -223,10 +212,10 @@ $has_ops = strpos($eval_data, 'ops') !== false;
     <!-- Hidden DOM Elements required by app.js rendering logic -->
     <div style="display:none;">
         <article id="story"></article>
-        <div id="tooltip"></div>
         <button id="startBtn"></button><button id="stopBtn"></button><button id="resetBtn"></button><button id="editStoryBtn"></button><button id="restartBtn"></button><button id="diagBtn"></button><div id="diagModal"></div><button id="closeDiagBtn"></button><div id="diagContent"></div><select id="locale"></select>
         <span id="statusPill"></span><span id="hint"></span><h4 id="timer"></h4><div id="meterBar"></div><span id="vadDot"></span><span id="liveBadge"></span><h4 id="storyWordCount"></h4><span id="wordBadge"></span>
     </div>
+    <div id="tooltip"></div>
 
     <!-- Override Modal -->
     <div id="overrideModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50">
@@ -574,11 +563,6 @@ $has_ops = strpos($eval_data, 'ops') !== false;
                 } else {
                     fd.append('evaluation_data', JSON.stringify(activeAssessment));
                 }
-            } else {
-                const manAcc = document.getElementById('manualAccuracy');
-                const manWcpm = document.getElementById('manualWCPM');
-                if (manAcc) fd.append('accuracy_score', manAcc.value);
-                if (manWcpm) fd.append('reading_speed', manWcpm.value);
             }
             
             // --- Inject Manual Comprehension Score ---

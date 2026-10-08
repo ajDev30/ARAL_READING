@@ -114,8 +114,14 @@ $answers_json = $attempt['answers_json'] ?: '{}';
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
     <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8">
         <div class="flex items-center">
-            <?php $sid = $_GET['sid'] ?? $attempt['user_id']; ?>
-            <a href="student_submissions.php?user_id=<?php echo $sid; ?>" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
+            <?php 
+                $sid = $_GET['sid'] ?? $attempt['user_id']; 
+                $return_url = "student_submissions.php?user_id=" . $sid;
+                if (isset($_GET['return']) && $_GET['return'] === 'grades') {
+                    $return_url = "teacher_student_grades.php?user_id=" . $sid;
+                }
+            ?>
+            <a href="<?php echo $return_url; ?>" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
             <i class="fas fa-search text-blue-500 text-2xl mr-3"></i>
             <h1 class="font-bold text-lg text-slate-800">Reviewing: <?php echo htmlspecialchars($attempt['fname'] . ' ' . $attempt['lname']); ?> (Grade <?php echo htmlspecialchars($attempt['passage_grade']); ?>)</h1>
         </div>

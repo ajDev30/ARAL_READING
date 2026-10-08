@@ -109,14 +109,14 @@ if ($action === 'override_attempt') {
     $acc = floatval($_POST['accuracy_score'] ?? 0);
     $miscues = $_POST['miscues_json'] ?? '{}';
     $answers_json = $_POST['answers_json'] ?? '{}';
-    $answers_json = $_POST['answers_json'] ?? '{}';
     $eval_data = $_POST['evaluation_data'] ?? null;
+    $reading_speed = isset($_POST['reading_speed']) ? floatval($_POST['reading_speed']) : null;
     
     try {
         $pdo->beginTransaction();
         
         // 1. Fetch attempt to get comprehension_score and user_id
-        $stmt = $pdo->prepare("SELECT user_id, comprehension_score, passage_grade FROM reading_attempts WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT user_id, comprehension_score, passage_grade, reading_speed FROM reading_attempts WHERE id = ?");
         $stmt->execute([$attempt_id]);
         $attempt = $stmt->fetch();
         if (!$attempt) throw new Exception("Attempt not found");
@@ -125,14 +125,16 @@ if ($action === 'override_attempt') {
         $comp = floatval($attempt['comprehension_score']);
         if (isset($_POST['comp_score'])) { $comp = floatval($_POST['comp_score']); }
         
+        $final_reading_speed = ($reading_speed !== null) ? $reading_speed : $attempt['reading_speed'];
+
         // 2. Calculate new classification
         $new_class = 'Instructional';
         if ($acc >= 97 && $comp >= 80) $new_class = 'Independent';
         elseif ($acc <= 89 || $comp <= 58) $new_class = 'Frustration';
         
         // 3. Update the specific attempt
-        $stmt = $pdo->prepare("UPDATE reading_attempts SET accuracy_score = ?, comprehension_score = ?, miscues_json = ?, evaluation_data = ?, oral_reading_profile = ?, answers_json = ? WHERE id = ?");
-        $stmt->execute([$acc, $comp, $miscues, $eval_data, $new_class, $answers_json, $attempt_id]);
+        $stmt = $pdo->prepare("UPDATE reading_attempts SET accuracy_score = ?, comprehension_score = ?, miscues_json = ?, evaluation_data = ?, oral_reading_profile = ?, answers_json = ?, reading_speed = ? WHERE id = ?");
+        $stmt->execute([$acc, $comp, $miscues, $eval_data, $new_class, $answers_json, $final_reading_speed, $attempt_id]);
         
         // 4. Fetch all attempts for this student to rebuild profile
         $stmt = $pdo->prepare("SELECT passage_grade, oral_reading_profile FROM reading_attempts WHERE user_id = ? AND phase = 'Pre-Test' ORDER BY created_at ASC");

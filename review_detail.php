@@ -24,18 +24,28 @@ if (!$attempt) {
 
 $eval_data = $attempt['evaluation_data'] ?: '{}';
 
-// Fetch questions based on phase
+// Fetch questions and passage text based on phase
 $q_json = '[]';
+$passage_text = '';
 if (strpos($attempt['phase'], 'Course') !== false) {
-    $stmt = $pdo->prepare("SELECT questions_json FROM course_assessments WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT questions_json, passage_text FROM course_assessments WHERE id = ?");
     $stmt->execute([$attempt['passage_id']]);
-    $q_json = $stmt->fetchColumn() ?: '[]';
+    $row = $stmt->fetch();
+    if ($row) {
+        $q_json = $row['questions_json'] ?: '[]';
+        $passage_text = $row['passage_text'] ?: '';
+    }
 } else {
-    $stmt = $pdo->prepare("SELECT questions_json FROM reading_passages WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT questions_json, text_content FROM reading_passages WHERE id = ?");
     $stmt->execute([$attempt['passage_id']]);
-    $q_json = $stmt->fetchColumn() ?: '[]';
+    $row = $stmt->fetch();
+    if ($row) {
+        $q_json = $row['questions_json'] ?: '[]';
+        $passage_text = $row['text_content'] ?: '';
+    }
 }
 $answers_json = $attempt['answers_json'] ?: '{}';
+$has_ops = strpos($eval_data, 'ops') !== false;
 
 ?>
 <!DOCTYPE html>
@@ -148,11 +158,22 @@ $answers_json = $attempt['answers_json'] ?: '{}';
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">Accuracy</div>
-                        <h4 id="readingAccuracy" class="text-xl font-bold text-slate-800"><?php echo number_format($attempt['accuracy_score'], 1); ?>%</h4>
+                        <h4 id="readingAccuracy" class="text-xl font-bold text-slate-800 <?php echo !$has_ops ? 'hidden' : ''; ?>"><?php echo number_format($attempt['accuracy_score'], 1); ?>%</h4>
+                        <?php if (!$has_ops): ?>
+                            <div class="flex items-center justify-center mt-1">
+                                <input type="number" id="manualAccuracy" value="<?php echo number_format($attempt['accuracy_score'], 1); ?>" class="w-20 border border-slate-300 rounded px-2 py-1 text-center outline-none focus:border-blue-500">
+                                <span class="ml-1 font-bold text-slate-500">%</span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">WCPM</div>
-                        <h4 id="wpm" class="text-xl font-bold text-slate-800"><?php echo number_format($attempt['reading_speed'], 1); ?></h4>
+                        <h4 id="wpm" class="text-xl font-bold text-slate-800 <?php echo !$has_ops ? 'hidden' : ''; ?>"><?php echo number_format($attempt['reading_speed'], 1); ?></h4>
+                        <?php if (!$has_ops): ?>
+                            <div class="flex items-center justify-center mt-1">
+                                <input type="number" id="manualWCPM" value="<?php echo number_format($attempt['reading_speed'], 1); ?>" class="w-20 border border-slate-300 rounded px-2 py-1 text-center outline-none focus:border-blue-500">
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">Comprehension</div>
@@ -254,7 +275,12 @@ $answers_json = $attempt['answers_json'] ?: '{}';
         let rawReviewData = <?php echo json_encode($eval_data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         window.reviewData = typeof rawReviewData === 'string' ? (rawReviewData ? JSON.parse(rawReviewData) : {}) : rawReviewData;
         const attemptId = <?php echo $attempt_id; ?>;
-        let activeAssessment = window.reviewData ? window.reviewData.assessment : null;
+        let activeAssessment = null;
+        if (window.reviewData && window.reviewData.assessment) {
+            activeAssessment = window.reviewData.assessment;
+        } else if (window.reviewData && window.reviewData.ops) {
+            activeAssessment = window.reviewData;
+        }
         
         let rawQJson = <?php echo json_encode($q_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const qJson = typeof rawQJson === 'string' ? (rawQJson ? JSON.parse(rawQJson) : []) : rawQJson;
@@ -262,6 +288,7 @@ $answers_json = $attempt['answers_json'] ?: '{}';
         let rawAns = <?php echo json_encode($answers_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const aJson = typeof rawAns === 'string' ? (rawAns ? JSON.parse(rawAns) : {}) : rawAns;
         
+        const rawPassageText = <?php echo json_encode($passage_text); ?>;
         function renderComprehensionReview() {
             const container = document.getElementById('comprehensionList');
             if (!qJson || qJson.length === 0) {
@@ -521,65 +548,80 @@ $answers_json = $attempt['answers_json'] ?: '{}';
                 if (type === 'insert') return 'insertion';
                 return null;
             }
+        } else {
+            // No audio/transcript generated, just render the text
+            els.transcript.innerHTML = rawPassageText;
+        }
+
+        document.getElementById('saveOverridesBtn').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            btn.textContent = 'Saving...';
             
-            document.getElementById('saveOverridesBtn').addEventListener('click', async (e) => {
-                const btn = e.currentTarget;
-                btn.textContent = 'Saving...';
-                
+            const fd = new FormData();
+            fd.append('attempt_id', attemptId);
+            
+            if (activeAssessment && activeAssessment.ops) {
                 const miscues = miscuesForAccuracy(activeAssessment.counts);
                 const words = activeAssessment.referenceWords.length;
                 const accuracy = words > 0 ? Math.max(0, ((words - miscues) / words) * 100) : 0;
                 
-                const fd = new FormData();
-                fd.append('attempt_id', attemptId);
                 fd.append('accuracy_score', accuracy);
                 fd.append('miscues_json', JSON.stringify(activeAssessment.counts));
                 // Update eval_data with new ops and counts so it persists
-                window.reviewData.assessment = activeAssessment;
-                fd.append('evaluation_data', JSON.stringify(window.reviewData));
-                
-                // --- Inject Manual Comprehension Score ---
-                if (typeof updateCompScorePreview === 'function') {
-                    const manualComp = updateCompScorePreview();
-                    fd.append('comp_score', manualComp);
-                    
-                    // We must also update answers_json in the DB to save the manual scores!
-                    if (typeof aJson !== 'undefined' && typeof qJson !== 'undefined') {
-                        document.querySelectorAll('.manual-score-input').forEach(inp => {
-                            const idx = inp.getAttribute('data-idx');
-                            if (!aJson[idx] || typeof aJson[idx] !== 'object') {
-                                // Convert primitive answers to object if needed, or just append it
-                                let oldAns = aJson[idx];
-                                aJson[idx] = { answer: oldAns, manual_score: parseInt(inp.value) || 0 };
-                            } else {
-                                aJson[idx].manual_score = parseInt(inp.value) || 0;
-                            }
-                        });
-                        fd.append('answers_json', JSON.stringify(aJson));
-                    }
+                if (window.reviewData && window.reviewData.assessment) {
+                    window.reviewData.assessment = activeAssessment;
+                    fd.append('evaluation_data', JSON.stringify(window.reviewData));
+                } else {
+                    fd.append('evaluation_data', JSON.stringify(activeAssessment));
                 }
-
+            } else {
+                const manAcc = document.getElementById('manualAccuracy');
+                const manWcpm = document.getElementById('manualWCPM');
+                if (manAcc) fd.append('accuracy_score', manAcc.value);
+                if (manWcpm) fd.append('reading_speed', manWcpm.value);
+            }
+            
+            // --- Inject Manual Comprehension Score ---
+            if (typeof updateCompScorePreview === 'function') {
+                const manualComp = updateCompScorePreview();
+                fd.append('comp_score', manualComp);
                 
-                try {
-                    const res = await fetch('api_assessment.php?action=override_attempt', {
-                        method: 'POST',
-                        body: fd
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.new_passage_classification) {
-                            document.getElementById('passageClassification').textContent = data.new_passage_classification;
+                // We must also update answers_json in the DB to save the manual scores!
+                if (typeof aJson !== 'undefined' && typeof qJson !== 'undefined') {
+                    document.querySelectorAll('.manual-score-input').forEach(inp => {
+                        const idx = inp.getAttribute('data-idx');
+                        if (!aJson[idx] || typeof aJson[idx] !== 'object') {
+                            // Convert primitive answers to object if needed, or just append it
+                            let oldAns = aJson[idx];
+                            aJson[idx] = { answer: oldAns, manual_score: parseInt(inp.value) || 0 };
+                        } else {
+                            aJson[idx].manual_score = parseInt(inp.value) || 0;
                         }
-                        btn.textContent = 'Saved!';
-                        btn.classList.replace('bg-emerald-500', 'bg-blue-500');
-                        setTimeout(() => { btn.textContent = 'Save Official Scores'; btn.classList.replace('bg-blue-500', 'bg-emerald-500'); }, 2000);
-                    }
-                } catch(err) {
-                    alert('Error saving overrides.');
-                    btn.textContent = 'Save Official Scores';
+                    });
+                    fd.append('answers_json', JSON.stringify(aJson));
                 }
-            });
-        }
+            }
+
+            try {
+                const res = await fetch('api_assessment.php?action=override_attempt', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.new_passage_classification) {
+                        const classEl = document.getElementById('passageClassification');
+                        if (classEl) classEl.textContent = data.new_passage_classification;
+                    }
+                    btn.textContent = 'Saved!';
+                    btn.classList.replace('bg-emerald-500', 'bg-blue-500');
+                    setTimeout(() => { btn.textContent = 'Save Official Scores'; btn.classList.replace('bg-blue-500', 'bg-emerald-500'); }, 2000);
+                }
+            } catch(err) {
+                alert('Error saving overrides.');
+                btn.textContent = 'Save Official Scores';
+            }
+        });
     </script>
 
         </div>

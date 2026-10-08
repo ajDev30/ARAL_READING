@@ -75,65 +75,89 @@ $phase = $test['test_type'] === 'Pre-Test' ? 'Course-Pre-Test' : 'Course-Post-Te
         <a href="student_course.php" class="btn btn-outline-secondary">Back to Course</a>
     </div>
 
-    <main class="shell" style="all: unset; display: block;">
-        <header class="topbar" style="border-radius: 8px; margin-bottom: 1rem;">
+        <main class="shell" style="all: unset; display: block;">
+        <header class="app-header mb-3 bg-white p-3 rounded shadow-sm border d-flex justify-content-between align-items-center">
             <div>
-                <div class="eyebrow">Reading Assessment</div>
-                <h1>Read aloud</h1>
+                <h1 style="font-weight:bold; font-size:1.25rem;">Reading Assessment</h1>
+                <p style="font-size:0.875rem; color:#64748b;" id="level-indicator">Read aloud</p>
             </div>
-            <div class="top-actions">
-                <span class="status-pill" id="statusPill">Ready</span>
+            <div class="controls">
+                <button id="diagBtn" class="btn btn-sm btn-outline-secondary" title="Diagnostics"><i class="fas fa-cog"></i></button>
+                <span class="badge badge-primary p-2" id="statusPill">Ready</span>
             </div>
         </header>
 
-        <section class="top-metrics">
-            <div class="metric"><span>TIME</span><strong id="timer">00:00</strong></div>
-            <div class="metric"><span>STORY WORDS</span><strong id="storyWordCount">0</strong></div>
-        </section>
-
-        <section class="reader-card">
-            <div class="reader-toolbar">
-                <div class="toolbar-status">
+        <div class="reader-card bg-white p-4 rounded shadow-sm border mb-4">
+            <div class="reader-toolbar mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
+                <div>
                     <span class="dot" id="vadDot"></span>
-                    <span id="hint">Ready. Press Start and read the passage.</span>
+                    <span id="hint" class="ml-2 font-weight-bold text-primary">Press Start and read the passage clearly.</span>
                 </div>
-                <div class="mic-meter"><div id="meterBar"></div></div>
             </div>
 
-            <textarea id="storyEditor" class="story-editor" hidden><?php echo htmlspecialchars($test['passage_text']); ?></textarea>
-
-            <div class="reader-grid">
-                <section class="reading-pane">
-                    <div class="pane-heading">
-                        <div><span class="pane-kicker">EXPECTED STORY</span></div>
-                        <span class="word-count-badge" id="wordBadge">0 words</span>
+            <textarea id="storyEditor" hidden><?php echo htmlspecialchars($test['passage_text']); ?></textarea>
+            
+            <div class="split-view row">
+                <section id="reading-pane-container" class="reading-pane col-md-12 border-right" style="position: relative;">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="font-weight-bold text-secondary small">PASSAGE</span>
                     </div>
-                    <article id="story" class="story"><?php echo $test['passage_text']; ?></article>
+                    <article id="story" class="story" style="font-size: 1.1rem; line-height:1.6;"><?php echo $test['passage_text']; ?></article>
                 </section>
-
-                <section class="reading-pane transcript-pane">
-                    <div class="pane-heading">
-                        <div><span class="pane-kicker">TRANSCRIPT</span></div>
+                <section id="realtime-pane-container" class="realtime-pane col-md-6 d-none">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="font-weight-bold text-secondary small">LIVE TRANSCRIPT</span>
                     </div>
-                    <div id="transcript" class="transcript">
-                        <span class="empty-state">Your spoken words will appear here...</span>
-                    </div>
+                    <article id="transcript" class="story text-muted" style="font-size: 1.1rem; line-height:1.6;"><span class="empty-state">Your spoken words will appear here...</span></article><div id="transcriptNotice" hidden></div>
                 </section>
             </div>
+        </div>
 
-            <div class="action-buttons">
-                <button id="startBtn" class="primary">▶ Start</button>
-                <button id="stopBtn" class="secondary" disabled>⏹ Stop</button>
-            </div>
+        <div class="text-center mt-3 mb-3 d-flex justify-content-center" style="gap: 15px;">
+            <button id="startBtn" class="btn btn-primary btn-lg px-4 shadow"><i class="fas fa-microphone"></i> Start</button>
+            <button id="stopBtn" class="btn btn-danger btn-lg px-4 shadow" disabled><i class="fas fa-stop"></i> Stop</button>
+            <button id="resetBtn" class="btn btn-outline-secondary btn-lg px-4 shadow"><i class="fas fa-redo"></i> Retry</button>
+        </div>
 
-            <div class="bottom-row">
-                <div class="performance-metrics">
-                    <div class="performance-card speed-card"><span>READING SPEED</span><strong id="wpm">—</strong></div>
-                    <div class="performance-card accuracy-card"><span>READING ACCURACY</span><strong id="readingAccuracy">—</strong></div>
-                </div>
-                <div class="miscue-strip" id="miscueStrip"></div>
+        <div class="row mt-4 border-top pt-3">
+            <div class="col-md-3 text-center">
+                <span class="text-secondary small font-weight-bold">TIME</span><br>
+                <h4 id="timer" class="text-primary font-weight-bold">00:00</h4>
             </div>
-        </section>
+            <div class="col-md-3 text-center">
+                <span class="text-secondary small font-weight-bold">STORY WORDS</span><br>
+                <h4 id="storyWordCount" class="text-primary font-weight-bold">0</h4>
+                <span id="wordBadge" hidden></span>
+            </div>
+            <div class="col-md-3 text-center">
+                <span class="text-secondary small font-weight-bold">WPM</span><br>
+                <h4 id="wpm" class="text-success font-weight-bold">—</h4>
+            </div>
+            <div class="col-md-3 text-center">
+                <span class="text-secondary small font-weight-bold">ACCURACY</span><br>
+                <h4 id="readingAccuracy" class="text-success font-weight-bold">—</h4>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12 text-center">
+                <div id="miscueStrip" class="d-flex justify-content-center gap-2 flex-wrap"></div>
+            </div>
+        </div>
+        
+        <!-- Hidden UI Elements Required by app.js -->
+        <div id="tooltip" hidden style="position:absolute; background:#333; color:#fff; padding:5px; border-radius:4px; z-index:9999;"></div>
+        <button id="editStoryBtn" hidden><strong></strong></button>
+        <button id="restartBtn" hidden></button>
+        <dialog id="diagModal" class="diag-modal">
+            <div class="diag-modal-header">
+                <h3>Assessment Diagnostics</h3>
+                <button id="closeDiagBtn" class="btn btn-sm btn-outline-secondary">Close</button>
+            </div>
+            <div id="diagContent" class="diag-modal-content">No assessment yet.</div>
+        </dialog>
+        <select id="locale" hidden><option value="en-US">en-US</option></select>
+        <div id="meterBar" hidden></div>
+        <span id="liveBadge" hidden></span>
 
         <!-- COMPREHENSION TEST -->
         <div id="comprehension-section" class="card shadow-sm mt-4 d-none" style="border: 2px solid #0d6efd; border-radius: 8px;">
@@ -151,14 +175,7 @@ $phase = $test['test_type'] === 'Pre-Test' ? 'Course-Pre-Test' : 'Course-Post-Te
     </main>
 </div>
 
-<!-- Hidden dependencies for app.js -->
-<div hidden>
-    <select id="locale"><option value="en-US">English (US)</option></select>
-    <button id="diagBtn"></button>
-    <button id="restartBtn"></button>
-    <button id="resetBtn"></button>
-    <button id="editStoryBtn"></button>
-    <div id="transcriptNotice"></div>
+
     <dialog id="diagModal"><button id="closeDiagBtn"></button><div id="diagContent"></div></dialog>
     <div id="tooltip"></div>
 </div>
@@ -272,7 +289,7 @@ document.getElementById('submitTestBtn').addEventListener('click', async () => {
             }
             compCorrect += matches;
         }
-        } else if (q.type === 'essay') {
+        else if (q.type === 'essay') {
             const textarea = document.querySelector(`.question-block[data-idx="${idx}"] .essay-input`);
             if (textarea) studentAnswers[idx] = textarea.value.trim();
             let pts = parseInt(q.points) || 30;

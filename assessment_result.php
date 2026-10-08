@@ -122,9 +122,7 @@ $profiles = $stmt->fetchAll();
                                 <th class="py-3 px-4 font-medium">Student</th>
                                 <th class="py-3 px-4 font-medium">Grade & Section</th>
                                 <th class="py-3 px-4 font-medium">Date Completed</th>
-                                <th class="py-3 px-4 font-medium text-emerald-600">Independent</th>
-                                <th class="py-3 px-4 font-medium text-amber-600">Instructional</th>
-                                <th class="py-3 px-4 font-medium text-rose-600">Frustration</th>
+                                
                                 <th class="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">Oral Reading</th>
                                 <th class="py-3 px-4 font-medium text-right">Action</th>
                             </tr>
@@ -158,9 +156,7 @@ $profiles = $stmt->fetchAll();
                                 <td class="py-3 px-4 font-medium text-slate-800"><?php echo htmlspecialchars($prof['fname'] . ' ' . $prof['lname']); ?></td>
                                 <td class="py-3 px-4 text-slate-500"><?php echo htmlspecialchars($prof['grade_level'] . ' - ' . $prof['section']); ?></td>
                                 <td class="py-3 px-4 text-slate-500"><?php echo $date; ?></td>
-                                <td class="py-3 px-4 font-medium"><?php echo $prof['independent_grade'] ? 'Grade ' . $prof['independent_grade'] : '—'; ?></td>
-                                <td class="py-3 px-4 font-medium"><?php echo $prof['instructional_grade'] ? 'Grade ' . $prof['instructional_grade'] : '—'; ?></td>
-                                <td class="py-3 px-4 font-medium"><?php echo $prof['frustration_grade'] ? 'Grade ' . $prof['frustration_grade'] : '—'; ?></td>
+                                
                                 <td class="py-3 px-4">
                                     <span class="inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold <?php echo $status_color; ?>">
                                         <?php echo $display_verdict; ?>

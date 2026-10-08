@@ -323,20 +323,20 @@ $answers_json = $attempt['answers_json'] ?: '{}';
                     else sAnsDisplay = '<i>No answer provided</i>';
                 }
                 
-                html += \`
+                html += `
                 <div class="border rounded-lg p-4 bg-slate-50 relative q-review-block" data-idx="${idx}" data-type="${q.type}" data-max="${pts}">
                     <div class="font-bold text-slate-700 mb-2">${idx + 1}. ${q.question || q.text || ''}</div>
-                \`;
+                `;
                 
                 if (optionsHtml) {
                     html += optionsHtml;
                 } else {
-                    html += \`
+                    html += `
                     <div class="mb-3 text-sm text-slate-600">
                         <strong class="text-slate-800">Student Answer:</strong><br>
                         <div class="mt-1 p-2 bg-white border rounded min-h-[40px]">${sAnsDisplay}</div>
                     </div>
-                    \`;
+                    `;
                 }
                 
                 if (q.type === 'essay') {

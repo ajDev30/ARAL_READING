@@ -117,6 +117,10 @@ $students = $stmt->fetchAll();
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800">Student Course Grades</h3>
+                        <input type="text" id="gradesSearch" placeholder="Search students..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
+                    </div>
                     <?php if(count($students) > 0): ?>
                         <div class="overflow-x-auto">
                             <table id="gradesTable" class="w-full text-left border-collapse">
@@ -168,20 +172,11 @@ $students = $stmt->fetchAll();
             </div>
         </main>
     </div>
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <!-- Custom Table Filter -->
+    <script src="v536/public/table_filter.js"></script>
     <script>
-        $(document).ready(function() {
-            if ($('#gradesTable').length) {
-                $('#gradesTable').DataTable({
-                    "pageLength": 10,
-                    "language": {
-                        "search": "Search:"
-                    }
-                });
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            initTailwindTable('gradesTable', 'gradesSearch');
         });
     </script>
     <script>

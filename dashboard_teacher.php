@@ -167,7 +167,10 @@ $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 
 
             <!-- Masterlist -->
             <div class="card p-6 h-auto flex flex-col mb-10">
-                <h3 class="font-bold text-slate-800 mb-4 text-sm border-b pb-2">Master Student List</h3>
+                <div class="flex justify-between items-center border-b pb-2 mb-4">
+                    <h3 class="font-bold text-slate-800 text-sm">Master Student List</h3>
+                    <input type="text" id="masterlistSearch" placeholder="Search students..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
+                </div>
                 <div class="overflow-x-auto">
                     <table id="masterlistTable" class="w-full text-sm text-left border-collapse">
                         <thead class="text-xs text-slate-500 bg-slate-50">
@@ -204,18 +207,11 @@ $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 
         </main>
     </div>
 
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <!-- Custom Table Filter -->
+    <script src="v536/public/table_filter.js"></script>
     <script>
-        $(document).ready(function() {
-            $('#masterlistTable').DataTable({
-                "pageLength": 10,
-                "language": {
-                    "search": "Search:"
-                }
-            });
+        document.addEventListener('DOMContentLoaded', () => {
+            initTailwindTable('masterlistTable', 'masterlistSearch');
         });
     </script>
 

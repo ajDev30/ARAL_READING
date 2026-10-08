@@ -35,6 +35,17 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id]);
 $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch Course Attempts
+$stmtCourse = $pdo->prepare("
+    SELECT a.*, c.title as passage_title
+    FROM reading_attempts a
+    LEFT JOIN course_assessments c ON a.passage_id = c.id
+    WHERE a.user_id = ? AND a.phase IN ('Course-Pre-Test', 'Course-Post-Test')
+    ORDER BY a.created_at DESC
+");
+$stmtCourse->execute([$user_id]);
+$course_attempts = $stmtCourse->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -101,6 +112,50 @@ $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .sidebar img { background-color: transparent !important; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.5)) !important; }
         <?php endif; ?>
     </style>
+            <!-- Course Grades Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-lg">Course Assessment History</h3>
+                    <input type="text" id="courseListSearch" placeholder="Search courses..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
+                </div>
+                
+                <?php if(empty($course_attempts)): ?>
+                    <div class="p-4 md:p-8 text-center text-slate-500">You have no recorded course grades yet.</div>
+                <?php else: ?>
+                    <div class="overflow-x-auto">
+                        <table id="courseListTable" class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4 border-b font-semibold">Date</th>
+                                    <th class="p-4 border-b font-semibold">Type</th>
+                                    <th class="p-4 border-b font-semibold">Course Title</th>
+                                    <th class="p-4 border-b font-semibold">Accuracy</th>
+                                    <th class="p-4 border-b font-semibold">Comprehension</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-slate-100">
+                                <?php foreach($course_attempts as $att): ?>
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-4 whitespace-nowrap text-slate-600"><?php echo date('M d, Y h:i A', strtotime($att['created_at'])); ?></td>
+                                    <td class="p-4 font-medium text-slate-700">
+                                        <?php 
+                                            if ($att['phase'] === 'Course-Pre-Test') echo 'Course Pre-Test';
+                                            elseif ($att['phase'] === 'Course-Post-Test') echo 'Course Post-Test';
+                                            else echo htmlspecialchars($att['phase']); 
+                                        ?>
+                                    </td>
+                                    <td class="p-4 text-slate-700 font-medium">
+                                        <?php echo htmlspecialchars($att['passage_title']); ?>
+                                    </td>
+                                    <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
+                                    <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
 
 
 
@@ -140,6 +195,50 @@ $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                 <?php endif; ?>
                 <span class="font-semibold text-sm"><?php echo $fullName; ?></span>
+            <!-- Course Grades Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-lg">Course Assessment History</h3>
+                    <input type="text" id="courseListSearch" placeholder="Search courses..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
+                </div>
+                
+                <?php if(empty($course_attempts)): ?>
+                    <div class="p-4 md:p-8 text-center text-slate-500">You have no recorded course grades yet.</div>
+                <?php else: ?>
+                    <div class="overflow-x-auto">
+                        <table id="courseListTable" class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4 border-b font-semibold">Date</th>
+                                    <th class="p-4 border-b font-semibold">Type</th>
+                                    <th class="p-4 border-b font-semibold">Course Title</th>
+                                    <th class="p-4 border-b font-semibold">Accuracy</th>
+                                    <th class="p-4 border-b font-semibold">Comprehension</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-slate-100">
+                                <?php foreach($course_attempts as $att): ?>
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-4 whitespace-nowrap text-slate-600"><?php echo date('M d, Y h:i A', strtotime($att['created_at'])); ?></td>
+                                    <td class="p-4 font-medium text-slate-700">
+                                        <?php 
+                                            if ($att['phase'] === 'Course-Pre-Test') echo 'Course Pre-Test';
+                                            elseif ($att['phase'] === 'Course-Post-Test') echo 'Course Post-Test';
+                                            else echo htmlspecialchars($att['phase']); 
+                                        ?>
+                                    </td>
+                                    <td class="p-4 text-slate-700 font-medium">
+                                        <?php echo htmlspecialchars($att['passage_title']); ?>
+                                    </td>
+                                    <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
+                                    <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
             </div>
         </header>
 
@@ -150,15 +249,16 @@ $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php $target_user_id = $user_id; include 'comparison_widget.php'; ?>
             <!-- Grades Table -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
                     <h3 class="font-bold text-slate-800 text-lg">Phil-IRI Assessment History (GST & Graded Passages)</h3>
+                    <input type="text" id="philiriSearch" placeholder="Search assessments..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
                 </div>
                 
                 <?php if(empty($attempts)): ?>
                     <div class="p-4 md:p-8 text-center text-slate-500">You have no recorded grades yet.</div>
                 <?php else: ?>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left">
+                        <table id="philiriTable" class="w-full text-left">
                             <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                                 <tr>
                                     <th class="p-4 border-b font-semibold">Date</th>
@@ -206,10 +306,62 @@ $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                 <?php endif; ?>
             </div>
+            <!-- Course Grades Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-lg">Course Assessment History</h3>
+                    <input type="text" id="courseListSearch" placeholder="Search courses..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
+                </div>
+                
+                <?php if(empty($course_attempts)): ?>
+                    <div class="p-4 md:p-8 text-center text-slate-500">You have no recorded course grades yet.</div>
+                <?php else: ?>
+                    <div class="overflow-x-auto">
+                        <table id="courseListTable" class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4 border-b font-semibold">Date</th>
+                                    <th class="p-4 border-b font-semibold">Type</th>
+                                    <th class="p-4 border-b font-semibold">Course Title</th>
+                                    <th class="p-4 border-b font-semibold">Accuracy</th>
+                                    <th class="p-4 border-b font-semibold">Comprehension</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-slate-100">
+                                <?php foreach($course_attempts as $att): ?>
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-4 whitespace-nowrap text-slate-600"><?php echo date('M d, Y h:i A', strtotime($att['created_at'])); ?></td>
+                                    <td class="p-4 font-medium text-slate-700">
+                                        <?php 
+                                            if ($att['phase'] === 'Course-Pre-Test') echo 'Course Pre-Test';
+                                            elseif ($att['phase'] === 'Course-Post-Test') echo 'Course Post-Test';
+                                            else echo htmlspecialchars($att['phase']); 
+                                        ?>
+                                    </td>
+                                    <td class="p-4 text-slate-700 font-medium">
+                                        <?php echo htmlspecialchars($att['passage_title']); ?>
+                                    </td>
+                                    <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
+                                    <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
 
         </main>
     </div>
 
+    <!-- Custom Table Filter -->
+    <script src="v536/public/table_filter.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initTailwindTable('philiriTable', 'philiriSearch');
+            initTailwindTable('courseListTable', 'courseListSearch');
+        });
+    </script>
     <script>
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('appSidebar');

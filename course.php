@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1">Grade Level</label>
                         <select name="target_grade" class="w-full border-slate-300 rounded text-sm p-2 bg-slate-50 border focus:ring-1 outline-none">
-                            <?php for($g=7; $g<=12; $g++): ?>
+                            <?php for($g=7; $g<=10; $g++): ?>
                             <option value="<?php echo $g; ?>" <?php if($target_grade == $g) echo 'selected'; ?>>Grade <?php echo $g; ?></option>
                             <?php endfor; ?>
                         </select>

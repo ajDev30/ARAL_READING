@@ -186,12 +186,13 @@ let miscues = {};
 
 // Handle Assessment Complete (From app.js)
 window.addEventListener('assessmentComplete', (e) => {
-    const data = e.detail;
-    oralScore = data.readingAccuracy || 0;
-    readingTime = data.durationSeconds || 0;
-    readingSpeed = data.wpm || 0;
-    miscues = data.miscuesJson || '{}';
-    window.currentAssessment = data.evalData || null;
+    const detailData = e.detail.data || e.detail;
+    
+    oralScore = detailData.readingAccuracy || 0;
+    readingTime = detailData.durationSeconds || 0;
+    readingSpeed = detailData.wpm || 0;
+    miscues = detailData.miscuesJson || '{}';
+    window.currentAssessment = e.detail.assessment || detailData.evalData || null;
     
     // Show Comprehension Test
     document.getElementById('comprehension-section').classList.remove('d-none');

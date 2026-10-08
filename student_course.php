@@ -24,26 +24,19 @@ $stmt = $pdo->prepare("SELECT * FROM reading_profiles WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $profile = $stmt->fetch();
 
-$target_grade = null;
-$student_profile_type = null;
-if ($profile) {
-    if ($profile['instructional_grade'] !== null) {
-        $target_grade = $profile['instructional_grade'];
-        $student_profile_type = 'Instructional';
-    } elseif ($profile['frustration_grade'] !== null) {
-        $target_grade = $profile['frustration_grade'];
-        $student_profile_type = 'Frustration';
-    }
-}
-
-// Fetch published course assessments matching the target grade
+// Fetch published course assessments
 $stmt = $pdo->query("SELECT * FROM course_assessments WHERE status = 'Published' ORDER BY created_at ASC");
 $all_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $courses = [];
-if ($target_grade !== null && $student_profile_type !== null) {
+if ($profile) {
     foreach ($all_courses as $c) {
-        if ($c['target_profile'] === $student_profile_type && preg_match('/GRADE ' . $target_grade . '\b/i', $c['title'])) {
+        $c_grade = $c['target_grade'] ?? null;
+        $c_profile = $c['target_profile'] ?? null;
+        
+        if ($c_profile === 'Instructional' && $profile['instructional_grade'] !== null && $c_grade == $profile['instructional_grade']) {
+            $courses[] = $c;
+        } else if ($c_profile === 'Frustration' && $profile['frustration_grade'] !== null && $c_grade == $profile['frustration_grade']) {
             $courses[] = $c;
         }
     }
@@ -194,7 +187,7 @@ $fullName = htmlspecialchars($user['fname'] . ' ' . $mi . ' ' . $user['lname']);
                                 <h3 class="text-xl font-bold text-slate-800"><?php echo htmlspecialchars($course['title']); ?></h3>
                                 <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-bold uppercase"><?php echo $course['test_type']; ?></span>
                             </div>
-                            <p class="text-slate-500 text-sm">Target: <?php echo $course['target_profile']; ?> Level</p>
+                            <p class="text-slate-500 text-sm">Target: Grade <?php echo $course['target_grade']; ?> <?php echo $course['target_profile']; ?> Level</p>
                         </div>
                         <div class="mt-4 md:mt-0 flex flex-col items-end">
                             <?php if ($is_taken): ?>

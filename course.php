@@ -23,17 +23,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
     $title = $_POST['title'] ?? 'Untitled Course Test';
     $test_type = $_POST['test_type'] ?? 'Pre-Test';
     $target_profile = $_POST['target_profile'] ?? 'Instructional';
+    $target_grade = $_POST['target_grade'] ?? 7;
     $status = $_POST['status'] ?? 'Draft';
     $available_from = !empty($_POST['available_from']) ? $_POST['available_from'] : null;
     $passage_text = $_POST['passage_text'] ?? '';
     $questions_json = $_POST['questions_json'] ?? '[]';
 
     if ($id) {
-        $stmt = $pdo->prepare("UPDATE course_assessments SET title=?, test_type=?, target_profile=?, status=?, available_from=?, passage_text=?, questions_json=? WHERE id=?");
-        $stmt->execute([$title, $test_type, $target_profile, $status, $available_from, $passage_text, $questions_json, $id]);
+        $stmt = $pdo->prepare("UPDATE course_assessments SET title=?, test_type=?, target_profile=?, target_grade=?, status=?, available_from=?, passage_text=?, questions_json=? WHERE id=?");
+        $stmt->execute([$title, $test_type, $target_profile, $target_grade, $status, $available_from, $passage_text, $questions_json, $id]);
     } else {
-        $stmt = $pdo->prepare("INSERT INTO course_assessments (title, test_type, target_profile, status, available_from, passage_text, questions_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$title, $test_type, $target_profile, $status, $available_from, $passage_text, $questions_json]);
+        $stmt = $pdo->prepare("INSERT INTO course_assessments (title, test_type, target_profile, target_grade, status, available_from, passage_text, questions_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$title, $test_type, $target_profile, $target_grade, $status, $available_from, $passage_text, $questions_json]);
         $id = $pdo->lastInsertId();
     }
     
@@ -178,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
                             <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
                                 <th class="p-4 border-b font-semibold">Title</th>
                                 <th class="p-4 border-b font-semibold">Type</th>
+                                <th class="p-4 border-b font-semibold">Grade</th>
                                 <th class="p-4 border-b font-semibold">Target Profile</th>
                                 <th class="p-4 border-b font-semibold">Status</th>
                                 <th class="p-4 border-b font-semibold">Available From</th>
@@ -189,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
                             <tr class="border-b hover:bg-slate-50 transition">
                                 <td class="p-4 font-bold"><?php echo htmlspecialchars($row['title']); ?></td>
                                 <td class="p-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold uppercase"><?php echo $row['test_type']; ?></span></td>
+                                <td class="p-4 font-semibold text-slate-600">Grade <?php echo $row['target_grade'] ?? '7'; ?></td>
                                 <td class="p-4"><span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold uppercase"><?php echo $row['target_profile']; ?></span></td>
                                 <td class="p-4">
                                     <?php if($row['status'] == 'Published'): ?>
@@ -221,6 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
         $title = $record['title'] ?? '';
         $test_type = $record['test_type'] ?? 'Pre-Test';
         $target_profile = $record['target_profile'] ?? 'Instructional';
+        $target_grade = $record['target_grade'] ?? 7;
         $status = $record['status'] ?? 'Draft';
         $available_from = $record['available_from'] ? date('Y-m-d\TH:i', strtotime($record['available_from'])) : '';
         $passage_text = $record['passage_text'] ?? '';
@@ -265,6 +269,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
                         <select name="target_profile" class="w-full border-slate-300 rounded text-sm p-2 bg-slate-50 border focus:ring-1 outline-none">
                             <option value="Instructional" <?php if($target_profile == 'Instructional') echo 'selected'; ?>>Instructional Readers</option>
                             <option value="Frustration" <?php if($target_profile == 'Frustration') echo 'selected'; ?>>Frustration Readers</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Grade Level</label>
+                        <select name="target_grade" class="w-full border-slate-300 rounded text-sm p-2 bg-slate-50 border focus:ring-1 outline-none">
+                            <?php for($g=7; $g<=12; $g++): ?>
+                            <option value="<?php echo $g; ?>" <?php if($target_grade == $g) echo 'selected'; ?>>Grade <?php echo $g; ?></option>
+                            <?php endfor; ?>
                         </select>
                     </div>
                     <div>

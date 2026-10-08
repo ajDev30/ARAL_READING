@@ -274,20 +274,68 @@ $answers_json = $attempt['answers_json'] ?: '{}';
                 // For auto-graded types, just show the score (1 or 0)
                 // For essays, allow teacher to input score
                 
-                let sAnsDisplay = sAns;
-                if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) { sAnsDisplay = sAns.answer; sAns = sAns.answer; }
-                if (Array.isArray(sAns)) sAnsDisplay = sAns.join(', ');
-                else if (typeof sAns === 'boolean' || typeof sAns === 'string') sAnsDisplay = sAns;
-                else sAnsDisplay = '<i>No answer provided</i>';
+                let rawStudentAns = sAns;
+                if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) { rawStudentAns = sAns.answer; sAns = sAns.answer; }
                 
-                html += `
+                let isCorrect = false;
+                let sAnsDisplay = rawStudentAns;
+                let optionsHtml = '';
+                
+                if (q.type === 'multichoice' || q.options) {
+                    const chosenIdx = parseInt(rawStudentAns);
+                    const correctIdx = parseInt(q.correct);
+                    isCorrect = chosenIdx === correctIdx;
+                    
+                    if (q.options && q.options.length > 0) {
+                        optionsHtml += '<div class="mt-3 mb-2 space-y-1">';
+                        q.options.forEach((opt, oIdx) => {
+                            let optClasses = 'p-2 rounded border text-sm ';
+                            let icon = '';
+                            if (oIdx === chosenIdx && oIdx === correctIdx) {
+                                optClasses += 'bg-emerald-50 border-emerald-300 text-emerald-800 font-medium';
+                                icon = '<i class="fas fa-check-circle text-emerald-500 mr-2"></i>';
+                            } else if (oIdx === chosenIdx) {
+                                optClasses += 'bg-rose-50 border-rose-300 text-rose-800 font-medium';
+                                icon = '<i class="fas fa-times-circle text-rose-500 mr-2"></i>';
+                            } else if (oIdx === correctIdx) {
+                                optClasses += 'bg-emerald-50 border-emerald-200 text-emerald-700 border-dashed';
+                                icon = '<i class="fas fa-check text-emerald-400 mr-2"></i>';
+                            } else {
+                                optClasses += 'bg-white border-slate-200 text-slate-600';
+                                icon = '<span class="inline-block w-4 mr-2 text-center text-slate-400 font-bold">' + String.fromCharCode(65 + oIdx) + '.</span>';
+                            }
+                            optionsHtml += '<div class="' + optClasses + '">' + icon + opt + '</div>';
+                        });
+                        optionsHtml += '</div>';
+                        
+                        // Set text to the actual string if they answered
+                        if (!isNaN(chosenIdx) && q.options[chosenIdx]) {
+                            sAnsDisplay = q.options[chosenIdx];
+                        } else {
+                            sAnsDisplay = '<i>No answer provided</i>';
+                        }
+                    }
+                } else {
+                    if (Array.isArray(rawStudentAns)) sAnsDisplay = rawStudentAns.join(', ');
+                    else if (typeof rawStudentAns === 'boolean' || typeof rawStudentAns === 'string' || typeof rawStudentAns === 'number') sAnsDisplay = rawStudentAns;
+                    else sAnsDisplay = '<i>No answer provided</i>';
+                }
+                
+                html += \`
                 <div class="border rounded-lg p-4 bg-slate-50 relative q-review-block" data-idx="${idx}" data-type="${q.type}" data-max="${pts}">
                     <div class="font-bold text-slate-700 mb-2">${idx + 1}. ${q.question || q.text || ''}</div>
+                \`;
+                
+                if (optionsHtml) {
+                    html += optionsHtml;
+                } else {
+                    html += \`
                     <div class="mb-3 text-sm text-slate-600">
                         <strong class="text-slate-800">Student Answer:</strong><br>
                         <div class="mt-1 p-2 bg-white border rounded min-h-[40px]">${sAnsDisplay}</div>
                     </div>
-                `;
+                    \`;
+                }
                 
                 if (q.type === 'essay') {
                     // Try to extract existing manual score if we stored it in answers_json previously, else default to 0

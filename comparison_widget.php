@@ -122,12 +122,24 @@ if ($has_pairs):
                     $resultBg = 'bg-emerald-50 border-emerald-200';
                     $icon = 'fa-arrow-trend-up text-emerald-500';
                     $rec = "The student demonstrated improvement from the Pre-Test to the Post-Test. Continue the current reading instruction and monitor the student's progress.";
+                } else if ($postPct == $prePct && $postPct >= 90) {
+                    $resultText = 'Consistent Mastery';
+                    $resultColor = 'text-purple-600';
+                    $resultBg = 'bg-purple-50 border-purple-200';
+                    $icon = 'fa-star text-purple-500';
+                    $rec = "The student maintained an excellent score across both assessments, demonstrating strong and consistent mastery of the reading material. Keep up the great work!";
                 } else if ($postPct == $prePct) {
                     $resultText = 'No Improvement';
                     $resultColor = 'text-amber-600';
                     $resultBg = 'bg-amber-50 border-amber-200';
                     $icon = 'fa-minus text-amber-500';
                     $rec = "The student showed no measurable improvement between the Pre-Test and Post-Test. Additional reading support and review of the student's learning needs are recommended.";
+                } else if ($postPct < $prePct && $postPct >= 90) {
+                    $resultText = 'Slight Decline';
+                    $resultColor = 'text-blue-600';
+                    $resultBg = 'bg-blue-50 border-blue-200';
+                    $icon = 'fa-arrow-trend-down text-blue-500';
+                    $rec = "The student's Post-Test score was slightly lower than the Pre-Test, but they still demonstrated an excellent overall understanding of the material.";
                 } else {
                     $resultText = 'Declined';
                     $resultColor = 'text-rose-600';

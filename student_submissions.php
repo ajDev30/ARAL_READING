@@ -177,22 +177,6 @@ $attempts = $stmt->fetchAll();
                     <h2 class="text-3xl font-black <?php echo $status_text; ?>"><?php echo $display_verdict; ?></h2>
                 </div>
             </div>
-            <div class="flex gap-6 bg-white/60 p-4 rounded-lg border border-white/40">
-                <div class="text-center">
-                    <div class="text-xs font-bold text-emerald-600 uppercase">Independent</div>
-                    <div class="text-lg font-bold text-slate-800"><?php echo $profile['independent_grade'] ? 'Gr. ' . $profile['independent_grade'] : '—'; ?></div>
-                </div>
-                <div class="w-px bg-slate-300"></div>
-                <div class="text-center">
-                    <div class="text-xs font-bold text-amber-600 uppercase">Instructional</div>
-                    <div class="text-lg font-bold text-slate-800"><?php echo $profile['instructional_grade'] ? 'Gr. ' . $profile['instructional_grade'] : '—'; ?></div>
-                </div>
-                <div class="w-px bg-slate-300"></div>
-                <div class="text-center">
-                    <div class="text-xs font-bold text-rose-600 uppercase">Frustration</div>
-                    <div class="text-lg font-bold text-slate-800"><?php echo $profile['frustration_grade'] ? 'Gr. ' . $profile['frustration_grade'] : '—'; ?></div>
-                </div>
-            </div>
         </div>
         <?php endif; ?>
 

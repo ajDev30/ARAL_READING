@@ -1,9 +1,9 @@
 <?php
 // We expect $target_user_id to be set before including this file.
 
-// Fetch Course pairs with all 4 metrics
+// Fetch Course pairs with all 4 metrics and questions for raw score calculation
 $stmtC = $pdo->prepare("
-    SELECT a.passage_id, a.phase, a.accuracy_score, a.comprehension_score, a.reading_speed, a.oral_reading_profile, c.title 
+    SELECT a.id, a.passage_id, a.phase, a.accuracy_score, a.comprehension_score, a.reading_speed, a.oral_reading_profile, a.reading_time, c.title, c.questions_json 
     FROM reading_attempts a
     JOIN course_assessments c ON a.passage_id = c.id
     WHERE a.user_id = ? AND a.phase IN ('Course-Pre-Test', 'Course-Post-Test')
@@ -14,12 +14,13 @@ $c_attempts = $stmtC->fetchAll(PDO::FETCH_ASSOC);
 
 $pairs = [];
 foreach($c_attempts as $a) {
-    // Extract Course Grade or Title group (e.g. "GRADE 7" from "GRADE 7 - PRE-TEST ...")
+    // Extract Course Grade or Title group
     $courseGroup = 'Course Assessment';
     if (preg_match('/^(.*?)(?:\s*(?:—|-)\s*(?:PRE-TEST|POST-TEST))/i', $a['title'], $matches)) {
         $courseGroup = trim($matches[1]);
+    } else if (preg_match('/GRADE (\d+)/i', $a['title'], $matches)) {
+        $courseGroup = "Grade " . $matches[1] . " Reading Module";
     } else {
-        // Fallback if title doesn't match expected pattern
         $courseGroup = $a['title'];
     }
 
@@ -31,14 +32,40 @@ foreach($c_attempts as $a) {
         ];
     }
     
+    // Calculate total questions
+    $totalQuestions = 10;
+    if (!empty($a['questions_json'])) {
+        $q = json_decode($a['questions_json'], true);
+        if ($q) {
+            $totalQuestions = 0;
+            foreach($q as $item) {
+                if ($item['type'] === 'multichoice' || !isset($item['type']) || isset($item['options'])) {
+                    $totalQuestions += 1;
+                } else if ($item['type'] === 'truefalse') {
+                    $totalQuestions += 1;
+                } else if ($item['type'] === 'enumeration') {
+                    $expectedCount = (isset($item['answers']) && count($item['answers']) > 0) ? count($item['answers']) : (intval($item['count'] ?? 1));
+                    $totalQuestions += $expectedCount;
+                } else if ($item['type'] === 'essay') {
+                    $pts = intval($item['points'] ?? 1);
+                    $totalQuestions += $pts;
+                }
+            }
+        }
+    }
+    
     $acc = floatval($a['accuracy_score']);
-    $comp = floatval($a['comprehension_score']);
+    $compPct = floatval($a['comprehension_score']);
+    $compRaw = round(($compPct / 100) * $totalQuestions);
     $wpm = floatval($a['reading_speed']);
     $wcpm = round($wpm * ($acc / 100));
 
     $data = [
+        'id' => $a['id'],
         'acc' => $acc,
-        'comp' => $comp,
+        'comp' => $compPct,
+        'comp_raw' => $compRaw,
+        'total_questions' => $totalQuestions,
         'wpm' => $wpm,
         'wcpm' => $wcpm,
         'prof' => $a['oral_reading_profile']
@@ -51,27 +78,34 @@ foreach($c_attempts as $a) {
     }
 }
 
-function getProfLevel($prof) {
-    if ($prof === 'Independent') return 3;
-    if ($prof === 'Instructional') return 2;
-    if ($prof === 'Frustration') return 1;
-    return 0;
+if (!function_exists('getProfLevel')) {
+    function getProfLevel($prof) {
+        $prof = strtolower(trim($prof));
+        if ($prof === 'independent') return 3;
+        if ($prof === 'instructional') return 2;
+        if ($prof === 'frustration') return 1;
+        return 0;
+    }
 }
 ?>
 
-<?php if(count($pairs) > 0): ?>
-<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-    <div class="p-6 border-b border-slate-100">
-        <h3 class="font-bold text-slate-800 text-lg">Course Assessment Progress</h3>
-        <p class="text-sm text-slate-500">Comparison of Pre-Test and Post-Test scores.</p>
+<?php if (count($pairs) > 0): ?>
+<div class="mt-8">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-slate-800"><i class="fas fa-layer-group text-blue-500 mr-2"></i> Course Test Progress</h3>
     </div>
-    <div class="p-6 bg-slate-50">
-        <div class="space-y-6">
-            <?php foreach($pairs as $p): 
-                if ($p['pre'] === null && $p['post'] === null) continue; 
-
-                $hasPre = $p['pre'] !== null;
-                $hasPost = $p['post'] !== null;
+    
+    <div class="space-y-6">
+        <?php 
+            foreach($pairs as $title => $p): 
+                $hasPre = !empty($p['pre']);
+                $hasPost = !empty($p['post']);
+                
+                $resultText = 'Pending';
+                $resultColor = 'text-slate-600';
+                $resultBg = 'bg-slate-50 border-slate-200';
+                $icon = 'fa-clock';
+                $rec = "Not enough data to provide a recommendation.";
                 
                 if ($hasPre && $hasPost) {
                     $pre = $p['pre'];
@@ -140,64 +174,148 @@ function getProfLevel($prof) {
                     $icon = 'fa-check text-slate-500';
                     $rec = "The student completed the Post-Test without a recorded Pre-Test.";
                 }
-            ?>
-            <div class="border border-slate-200 rounded-lg p-5 hover:shadow-md transition bg-slate-50">
-                <h4 class="font-bold text-slate-700 text-lg mb-4 border-b pb-2"><?php echo htmlspecialchars($p['title']); ?></h4>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
-                    <?php 
-                    $metrics = [
-                        ['label' => 'Accuracy', 'key' => 'acc', 'suffix' => '%'],
-                        ['label' => 'Comprehension', 'key' => 'comp', 'suffix' => '%'],
-                        ['label' => 'WCPM', 'key' => 'wcpm', 'suffix' => ''],
-                        ['label' => 'WPM', 'key' => 'wpm', 'suffix' => '']
-                    ];
-                    foreach($metrics as $m): 
-                        $key = $m['key'];
-                        $preVal = $hasPre ? $p['pre'][$key] : null;
-                        $postVal = $hasPost ? $p['post'][$key] : null;
-                    ?>
-                    <div class="bg-white p-3 rounded border border-slate-200">
-                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center border-b pb-1"><?php echo $m['label']; ?></div>
-                        <div class="flex justify-between items-center text-sm">
-                            <div class="text-center w-1/3">
-                                <div class="text-[10px] text-slate-400 uppercase">Pre</div>
-                                <div class="font-bold text-slate-700"><?php echo $preVal !== null ? $preVal . $m['suffix'] : '—'; ?></div>
+        ?>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row justify-between md:items-center gap-2">
+                <h2 class="text-lg font-bold text-slate-800"><?php echo htmlspecialchars($p['title']); ?></h2>
+                <div class="flex items-center gap-2 px-3 py-1 rounded-full <?php echo $resultBg; ?> border w-fit">
+                    <i class="fas <?php echo $icon; ?> <?php echo $resultColor; ?>"></i>
+                    <span class="text-sm font-bold <?php echo $resultColor; ?>"><?php echo $resultText; ?></span>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Pre Test Card -->
+                    <div class="border border-slate-200 rounded-lg p-5 <?php echo $hasPre ? 'bg-white' : 'bg-slate-50'; ?>">
+                        <h3 class="font-bold text-slate-700 uppercase tracking-wider text-sm mb-4 border-b pb-2">Pre-Test</h3>
+                        <?php if ($hasPre): $pre = $p['pre']; ?>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Comprehension</div>
+                                    <div class="text-2xl font-black text-blue-600"><?php echo $pre['comp_raw']; ?>/<?php echo $pre['total_questions']; ?></div>
+                                    <div class="text-sm font-medium text-slate-500"><?php echo number_format($pre['comp'], 1); ?>%</div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Reading Accuracy</div>
+                                    <div class="text-2xl font-black text-emerald-600"><?php echo number_format($pre['acc'], 1); ?>%</div>
+                                    <div class="text-sm font-medium text-slate-500">Profile: <?php echo $pre['prof']; ?></div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Reading Speed</div>
+                                    <div class="text-xl font-bold text-slate-700"><?php echo round($pre['wpm']); ?> <span class="text-sm font-normal text-slate-500">WPM</span></div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Correct Words</div>
+                                    <div class="text-xl font-bold text-slate-700"><?php echo $pre['wcpm']; ?> <span class="text-sm font-normal text-slate-500">WCPM</span></div>
+                                </div>
                             </div>
-                            <div class="text-center w-1/3">
-                                <i class="fas fa-arrow-right text-slate-300 text-xs"></i>
+                            <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
+                            <div class="mt-4 pt-4 border-t border-slate-100 text-center">
+                                <a href="review_detail.php?id=<?php echo $pre['id']; ?>&sid=<?php echo $target_user_id; ?>&return=grades" class="inline-block px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-headphones mr-2"></i> Review Audio & Transcript
+                                </a>
                             </div>
-                            <div class="text-center w-1/3">
-                                <div class="text-[10px] text-slate-400 uppercase">Post</div>
-                                <div class="font-bold text-slate-700"><?php echo $postVal !== null ? $postVal . $m['suffix'] : '—'; ?></div>
-                            </div>
-                        </div>
-                        <?php if ($hasPre && $hasPost): 
-                            $diff = $postVal - $preVal;
-                            $diffColor = $diff > 0 ? 'text-emerald-600' : ($diff < 0 ? 'text-rose-600' : 'text-slate-400');
-                            $diffSign = $diff > 0 ? '+' : '';
-                        ?>
-                            <div class="text-center mt-2 pt-1 border-t border-slate-100">
-                                <span class="text-xs font-bold <?php echo $diffColor; ?>"><?php echo $diffSign . $diff . $m['suffix']; ?></span>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="text-center py-8 text-slate-400">
+                                <i class="fas fa-times-circle text-3xl mb-2 opacity-50"></i>
+                                <p class="font-medium">Not Taken</p>
                             </div>
                         <?php endif; ?>
                     </div>
-                    <?php endforeach; ?>
+
+                    <!-- Post Test Card -->
+                    <div class="border border-slate-200 rounded-lg p-5 <?php echo $hasPost ? 'bg-white' : 'bg-slate-50'; ?>">
+                        <h3 class="font-bold text-slate-700 uppercase tracking-wider text-sm mb-4 border-b pb-2">Post-Test</h3>
+                        <?php if ($hasPost): $post = $p['post']; ?>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Comprehension</div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="text-2xl font-black text-blue-600"><?php echo $post['comp_raw']; ?>/<?php echo $post['total_questions']; ?></div>
+                                        <?php if($hasPre): 
+                                            $cd = $post['comp'] - $p['pre']['comp']; 
+                                            $col = $cd > 0 ? 'text-emerald-500' : ($cd < 0 ? 'text-rose-500' : 'text-slate-400');
+                                            $sign = $cd > 0 ? '+' : '';
+                                        ?>
+                                        <div class="text-xs font-bold <?php echo $col; ?> mb-1"><?php echo $sign . number_format($cd, 1); ?>%</div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-sm font-medium text-slate-500"><?php echo number_format($post['comp'], 1); ?>%</div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Reading Accuracy</div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="text-2xl font-black text-emerald-600"><?php echo number_format($post['acc'], 1); ?>%</div>
+                                        <?php if($hasPre): 
+                                            $ad = $post['acc'] - $p['pre']['acc']; 
+                                            $col = $ad > 0 ? 'text-emerald-500' : ($ad < 0 ? 'text-rose-500' : 'text-slate-400');
+                                            $sign = $ad > 0 ? '+' : '';
+                                        ?>
+                                        <div class="text-xs font-bold <?php echo $col; ?> mb-1"><?php echo $sign . number_format($ad, 1); ?>%</div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-sm font-medium text-slate-500">Profile: <?php echo $post['prof']; ?></div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Reading Speed</div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="text-xl font-bold text-slate-700"><?php echo round($post['wpm']); ?> <span class="text-sm font-normal text-slate-500">WPM</span></div>
+                                        <?php if($hasPre): 
+                                            $wd = $post['wpm'] - $p['pre']['wpm']; 
+                                            $col = $wd > 0 ? 'text-emerald-500' : ($wd < 0 ? 'text-rose-500' : 'text-slate-400');
+                                            $sign = $wd > 0 ? '+' : '';
+                                        ?>
+                                        <div class="text-xs font-bold <?php echo $col; ?> mb-0.5"><?php echo $sign . round($wd); ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Correct Words</div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="text-xl font-bold text-slate-700"><?php echo $post['wcpm']; ?> <span class="text-sm font-normal text-slate-500">WCPM</span></div>
+                                        <?php if($hasPre): 
+                                            $wcd = $post['wcpm'] - $p['pre']['wcpm']; 
+                                            $col = $wcd > 0 ? 'text-emerald-500' : ($wcd < 0 ? 'text-rose-500' : 'text-slate-400');
+                                            $sign = $wcd > 0 ? '+' : '';
+                                        ?>
+                                        <div class="text-xs font-bold <?php echo $col; ?> mb-0.5"><?php echo $sign . round($wcd); ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
+                            <div class="mt-4 pt-4 border-t border-slate-100 text-center">
+                                <a href="review_detail.php?id=<?php echo $post['id']; ?>&sid=<?php echo $target_user_id; ?>&return=grades" class="inline-block px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-headphones mr-2"></i> Review Audio & Transcript
+                                </a>
+                            </div>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="text-center py-8 text-slate-400">
+                                <i class="fas fa-times-circle text-3xl mb-2 opacity-50"></i>
+                                <p class="font-medium">Not Taken</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 
-                <div class="flex flex-col md:flex-row gap-4">
-                    <div class="md:w-1/3 p-4 rounded border <?php echo $resultBg; ?> flex items-center justify-center">
-                        <i class="fas <?php echo $icon; ?> text-2xl mr-3"></i>
-                        <span class="text-xl font-black uppercase tracking-wider <?php echo $resultColor; ?> text-center"><?php echo $resultText; ?></span>
-                    </div>
-                    <div class="md:w-2/3 p-4 rounded border border-slate-200 bg-white">
-                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Recommendation</div>
-                        <p class="text-sm text-slate-700 font-medium"><?php echo $rec; ?></p>
-                    </div>
+                <!-- Recommendation -->
+                <div class="<?php echo str_replace('border-', 'border-l-4 border-y-0 border-r-0 bg-', $resultBg); ?> bg-opacity-50 rounded-r-lg p-4">
+                    <div class="text-xs font-bold <?php echo $resultColor; ?> uppercase tracking-wider mb-1">Final Recommendation</div>
+                    <p class="text-sm text-slate-700 font-medium"><?php echo $rec; ?></p>
                 </div>
+
             </div>
-            <?php endforeach; ?>
         </div>
+        <?php endforeach; ?>
     </div>
 </div>
+<?php else: ?>
+    <div class="bg-white p-8 rounded-xl border border-slate-200 text-center mt-8">
+        <i class="fas fa-layer-group text-slate-300 text-4xl mb-3"></i>
+        <p class="text-slate-500 font-medium">No Course Tests Taken Yet</p>
+        <p class="text-sm text-slate-400 mt-1">When the user takes a Course Pre-Test or Post-Test, their progress will appear here.</p>
+    </div>
 <?php endif; ?>

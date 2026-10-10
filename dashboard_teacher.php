@@ -10,9 +10,16 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 
 // Fetch real data
 $stmt = $pdo->prepare("
-    SELECT u.*, p.independent_grade, p.instructional_grade, p.frustration_grade 
+    SELECT u.*, 
+           p.independent_grade, p.instructional_grade, p.frustration_grade,
+           g.needs_individual_assessment
     FROM users u
     LEFT JOIN reading_profiles p ON u.id = p.user_id
+    LEFT JOIN (
+        SELECT user_id, needs_individual_assessment
+        FROM gst_results
+        WHERE id IN (SELECT MAX(id) FROM gst_results GROUP BY user_id)
+    ) g ON u.id = g.user_id
     WHERE u.role = 'student' 
     ORDER BY u.fname ASC
 ");
@@ -26,7 +33,9 @@ foreach($students as &$s) {
     $enrolled_grade = intval(preg_replace('/[^0-9]/', '', $s['grade_level']));
     $final_status = 'Pending';
     
-    if ($s['independent_grade'] !== null || $s['instructional_grade'] !== null || $s['frustration_grade'] !== null) {
+    if (isset($s['needs_individual_assessment']) && $s['needs_individual_assessment'] == 0) {
+        $final_status = 'Independent';
+    } elseif ($s['independent_grade'] !== null || $s['instructional_grade'] !== null || $s['frustration_grade'] !== null) {
         if ($s['independent_grade'] !== null && $enrolled_grade <= intval($s['independent_grade'])) {
             $final_status = 'Independent';
         } elseif ($s['instructional_grade'] !== null && $enrolled_grade <= intval($s['instructional_grade'])) {

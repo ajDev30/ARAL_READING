@@ -31,12 +31,19 @@ $status_bg = 'bg-slate-50 border-slate-200';
 $status_text = 'text-slate-800';
 $icon = 'fa-clock text-slate-400';
 
-if ($profile) {
+// Fetch GST Result
+$stmtGST = $pdo->prepare("SELECT * FROM gst_results WHERE user_id = ? ORDER BY completed_at DESC LIMIT 1");
+$stmtGST->execute([$student_id]);
+$gst_result = $stmtGST->fetch();
+
+if ($profile || ($gst_result && $gst_result['needs_individual_assessment'] == 0)) {
     // Calculate Phil-IRI Oral Reading Profile based on Enrolled Grade Level
     $enrolled_grade = intval(preg_replace('/[^0-9]/', '', $student['grade_level']));
     $final_status = 'Pending';
     
-    if ($profile['independent_grade'] !== null || $profile['instructional_grade'] !== null || $profile['frustration_grade'] !== null) {
+    if (isset($gst_result['needs_individual_assessment']) && $gst_result['needs_individual_assessment'] == 0) {
+        $final_status = 'Independent';
+    } elseif ($profile && ($profile['independent_grade'] !== null || $profile['instructional_grade'] !== null || $profile['frustration_grade'] !== null)) {
         if ($profile['independent_grade'] !== null && $enrolled_grade <= intval($profile['independent_grade'])) {
             $final_status = 'Independent';
         } elseif ($profile['instructional_grade'] !== null && $enrolled_grade <= intval($profile['instructional_grade'])) {
@@ -82,10 +89,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([$student_id]);
 $attempts = $stmt->fetchAll();
 
-// Fetch GST Result
-$stmtGST = $pdo->prepare("SELECT * FROM gst_results WHERE user_id = ? ORDER BY completed_at DESC LIMIT 1");
-$stmtGST->execute([$student_id]);
-$gst_result = $stmtGST->fetch();
+
 
 
 ?>
@@ -182,7 +186,7 @@ $gst_result = $stmtGST->fetch();
 
     <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full overflow-y-auto">
         
-        <?php if ($profile): ?>
+        <?php if (isset($display_verdict)): ?>
         <div class="mb-6 rounded-xl border p-6 flex flex-col md:flex-row md:items-center justify-between <?php echo $status_bg; ?>">
             <div class="flex items-center gap-4">
                 <i class="fas <?php echo $icon; ?> text-4xl"></i>

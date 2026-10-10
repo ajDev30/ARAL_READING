@@ -8,12 +8,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     exit;
 }
 
-// Fetch all students who have a finalized reading profile
+// Fetch all students who have a finalized reading profile OR a completed GST result
 $stmt = $pdo->query("
-    SELECT rp.*, u.id as student_id, u.fname, u.lname, u.grade_level, u.section 
-    FROM reading_profiles rp
-    JOIN users u ON rp.user_id = u.id
-    ORDER BY rp.updated_at DESC
+    SELECT u.id as student_id, u.fname, u.lname, u.grade_level, u.section,
+           rp.independent_grade, rp.instructional_grade, rp.frustration_grade,
+           g.needs_individual_assessment,
+           COALESCE(rp.updated_at, g.completed_at) as updated_at
+    FROM users u
+    LEFT JOIN reading_profiles rp ON u.id = rp.user_id
+    LEFT JOIN (
+        SELECT user_id, needs_individual_assessment, completed_at
+        FROM gst_results
+        WHERE id IN (SELECT MAX(id) FROM gst_results GROUP BY user_id)
+    ) g ON u.id = g.user_id
+    WHERE u.role = 'student' AND (rp.id IS NOT NULL OR g.user_id IS NOT NULL)
+    ORDER BY COALESCE(rp.updated_at, g.completed_at) DESC
 ");
 $profiles = $stmt->fetchAll();
 
@@ -138,7 +147,9 @@ $profiles = $stmt->fetchAll();
                                 $enrolled_grade = intval(preg_replace('/[^0-9]/', '', $prof['grade_level']));
                                 $final_status = 'Pending';
                                 
-                                if ($prof['independent_grade'] !== null || $prof['instructional_grade'] !== null || $prof['frustration_grade'] !== null) {
+                                if (isset($prof['needs_individual_assessment']) && $prof['needs_individual_assessment'] == 0) {
+                                    $final_status = 'Independent';
+                                } elseif ($prof['independent_grade'] !== null || $prof['instructional_grade'] !== null || $prof['frustration_grade'] !== null) {
                                     if ($prof['independent_grade'] !== null && $enrolled_grade <= intval($prof['independent_grade'])) {
                                         $final_status = 'Independent';
                                     } elseif ($prof['instructional_grade'] !== null && $enrolled_grade <= intval($prof['instructional_grade'])) {

@@ -122,9 +122,15 @@ async function loadGSTContent() {
 
 function renderGSTUI(questions) {
     gstQuestionsContainer.innerHTML = '';
+    let qNum = 1;
     questions.forEach((q, idx) => {
+        let isDesc = (q.type === 'description');
+        let title = isDesc ? (q.question || q.text || '') : `${qNum}. ${q.question || q.text || ''}`;
+        
         let html = `<div class="mb-4 q-block p-4 border rounded bg-white" data-idx="${idx}" data-type="${q.type || 'multichoice'}">
-            <h5 class="font-weight-bold mb-3">${idx + 1}. ${q.question || q.text || ''}</h5>`;
+            <h5 class="font-weight-bold mb-3">${title}</h5>`;
+            
+        if (!isDesc) qNum++;
             
         if (q.type === 'multichoice' || !q.type || q.options) {
             (q.options || []).forEach((opt, oIdx) => {
@@ -421,9 +427,16 @@ function renderComprehensionUI() {
         questionsContainer.innerHTML = '<p class="text-muted">No comprehension questions for this passage.</p>';
     }
 
+    let qNum = 1;
     allQ.forEach((q, idx) => {
+        let isDesc = (q.type === 'description');
+        let title = isDesc ? (q.question || q.text || '') : `${qNum}. ${q.question || q.text || ''}`;
+        
         let html = `<div class="mb-4 q-block bg-white p-4 border rounded" data-type="${q.type}" data-idx="${idx}">
-            <h5 class="font-weight-bold mb-3">${idx+1}. ${q.question || q.text || ''}</h5>`;
+            <h5 class="font-weight-bold mb-3">${title}</h5>`;
+            
+        if (!isDesc) qNum++;
+        
         if (q.type === 'multichoice' || (!q.type && q.options)) {
             (q.options || []).forEach((opt, oIdx) => {
                 html += `<div class="form-check mb-2">

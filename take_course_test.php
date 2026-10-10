@@ -203,9 +203,15 @@ function renderComprehensionTest(questions) {
     const container = document.getElementById('comprehension-questions');
     container.innerHTML = '';
     
+    let qNum = 1;
     questions.forEach((q, idx) => {
+        let isDesc = (q.type === 'description');
+        let title = isDesc ? (q.question || q.text || '') : `${qNum}. ${q.question || q.text || ''}`;
+        
         let html = `<div class="mb-4 p-3 bg-light rounded question-block" data-idx="${idx}">
-            <h5>${idx+1}. ${q.question || q.text || ''}</h5>`;
+            <h5>${title}</h5>`;
+            
+        if (!isDesc) qNum++;
         
         if (q.type === 'multichoice' || (!q.type && q.options)) {
             (q.options || []).forEach((opt, oIdx) => {

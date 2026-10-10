@@ -1,19 +1,30 @@
-function initTailwindTable(tableId, searchId) {
+function initTailwindTable(tableId, searchId, filterId = null, filterColIndex = null) {
     const table = document.getElementById(tableId);
     if (!table) return;
     const searchInput = document.getElementById(searchId);
+    const filterSelect = filterId ? document.getElementById(filterId) : null;
     
-    // Setup Search
-    if (searchInput) {
-        searchInput.addEventListener('keyup', function() {
-            const filter = this.value.toLowerCase();
-            const rows = table.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(filter) ? '' : 'none';
-            });
+    function applyFilters() {
+        const textFilter = searchInput ? searchInput.value.toLowerCase() : '';
+        const selectFilter = filterSelect ? filterSelect.value.toLowerCase() : '';
+        
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            if (row.cells.length <= 1) return; // skip 'no records' rows
+            const text = row.textContent.toLowerCase();
+            const colText = filterColIndex !== null && row.cells.length > filterColIndex 
+                ? row.cells[filterColIndex].textContent.toLowerCase() 
+                : '';
+            
+            const matchesText = text.includes(textFilter);
+            const matchesSelect = selectFilter === '' || colText === selectFilter;
+            
+            row.style.display = (matchesText && matchesSelect) ? '' : 'none';
         });
     }
+
+    if (searchInput) searchInput.addEventListener('keyup', applyFilters);
+    if (filterSelect) filterSelect.addEventListener('change', applyFilters);
 
     // Setup Sorting
     const headers = table.querySelectorAll('thead th');

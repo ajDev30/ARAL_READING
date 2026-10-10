@@ -121,9 +121,18 @@ $profiles = $stmt->fetchAll();
 
     <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full overflow-y-auto">
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                 <h2 class="text-xl font-bold text-slate-800">Completed Pre-Assessments</h2>
-                <input type="text" id="assessmentSearch" placeholder="Search results..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
+                <div class="flex items-center gap-2">
+                    <select id="assessmentProfileFilter" class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                        <option value="">All Profiles</option>
+                        <option value="Independent">Independent</option>
+                        <option value="Instructional">Instructional</option>
+                        <option value="Frustration">Frustration</option>
+                        <option value="Non-Reader">Non-Reader</option>
+                    </select>
+                    <input type="text" id="assessmentSearch" placeholder="Search results..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 w-64">
+                </div>
             </div>
             
             <?php if (count($profiles) > 0): ?>
@@ -208,7 +217,7 @@ $profiles = $stmt->fetchAll();
 <script src="v536/public/table_filter.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        initTailwindTable('assessmentTable', 'assessmentSearch');
+        initTailwindTable('assessmentTable', 'assessmentSearch', 'assessmentProfileFilter', 3);
     });
 </script>
 <script>

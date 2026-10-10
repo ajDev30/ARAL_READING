@@ -210,9 +210,19 @@ $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0
 
             <!-- Masterlist -->
             <div class="card p-6 h-auto flex flex-col mb-10">
-                <div class="flex justify-between items-center border-b pb-2 mb-4">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center border-b pb-2 mb-4 gap-2">
                     <h3 class="font-bold text-slate-800 text-sm">Master Student List</h3>
-                    <input type="text" id="masterlistSearch" placeholder="Search students..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
+                    <div class="flex items-center gap-2">
+                        <select id="masterlistProfileFilter" class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                            <option value="">All Profiles</option>
+                            <option value="Independent">Independent</option>
+                            <option value="Instructional">Instructional</option>
+                            <option value="Frustration">Frustration</option>
+                            <option value="Non-Reader">Non-Reader</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                        <input type="text" id="masterlistSearch" placeholder="Search students..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table id="masterlistTable" class="w-full text-sm text-left border-collapse">
@@ -255,7 +265,7 @@ $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0
     <script src="v536/public/table_filter.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            initTailwindTable('masterlistTable', 'masterlistSearch');
+            initTailwindTable('masterlistTable', 'masterlistSearch', 'masterlistProfileFilter', 3);
         });
     </script>
 

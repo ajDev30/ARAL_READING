@@ -9,23 +9,51 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 }
 
 // Fetch real data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE role = 'student' ORDER BY fname ASC");
+$stmt = $pdo->prepare("
+    SELECT u.*, p.independent_grade, p.instructional_grade, p.frustration_grade 
+    FROM users u
+    LEFT JOIN reading_profiles p ON u.id = p.user_id
+    WHERE u.role = 'student' 
+    ORDER BY u.fname ASC
+");
 $stmt->execute();
 $students = $stmt->fetchAll();
 
 $total_students = count($students);
-$independent = 0; $instructional = 0; $frustration = 0; $pending = 0;
+$independent = 0; $instructional = 0; $frustration = 0; $non_reader = 0; $pending = 0;
 
-foreach($students as $s) {
-    if($s['current_level'] == 'Independent') $independent++;
-    elseif($s['current_level'] == 'Instructional') $instructional++;
-    elseif($s['current_level'] == 'Frustration') $frustration++;
+foreach($students as &$s) {
+    $enrolled_grade = intval(preg_replace('/[^0-9]/', '', $s['grade_level']));
+    $final_status = 'Pending';
+    
+    if ($s['independent_grade'] !== null || $s['instructional_grade'] !== null || $s['frustration_grade'] !== null) {
+        if ($s['independent_grade'] !== null && $enrolled_grade <= intval($s['independent_grade'])) {
+            $final_status = 'Independent';
+        } elseif ($s['instructional_grade'] !== null && $enrolled_grade <= intval($s['instructional_grade'])) {
+            $final_status = 'Instructional';
+        } else {
+            if ($s['frustration_grade'] !== null && intval($s['frustration_grade']) <= 4 && $s['instructional_grade'] === null && $s['independent_grade'] === null) {
+                $final_status = 'Non-Reader';
+            } else {
+                $final_status = 'Frustration';
+            }
+        }
+    }
+    
+    $s['oral_reading_profile'] = $final_status;
+    
+    if($final_status === 'Independent') $independent++;
+    elseif($final_status === 'Instructional') $instructional++;
+    elseif($final_status === 'Frustration') $frustration++;
+    elseif($final_status === 'Non-Reader') $non_reader++;
     else $pending++;
 }
+unset($s);
 
 $pct_ind = $total_students > 0 ? round(($independent/$total_students)*100, 1) : 0;
 $pct_ins = $total_students > 0 ? round(($instructional/$total_students)*100, 1) : 0;
 $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 0;
+$pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -134,13 +162,12 @@ $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 
             <h2 class="text-2xl font-bold text-slate-800 mb-6">Dashboard Overview</h2>
 
             <!-- Metrics -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div class="card p-4 flex flex-col md:flex-row md:items-center justify-between border-l-4 border-l-blue-500">
                     <div>
-                        <p class="text-sm font-semibold text-blue-600 mb-1">Total Students</p>
+                        <p class="text-sm font-semibold text-blue-600 mb-1">Total</p>
                         <h3 class="text-3xl font-bold"><?php echo $total_students; ?></h3>
                     </div>
-                    <div class="text-3xl text-blue-100"><i class="fas fa-users"></i></div>
                 </div>
                 <div class="card p-4 flex flex-col md:flex-row md:items-center justify-between border-l-4 border-l-emerald-500 bg-emerald-50/30">
                     <div>
@@ -163,6 +190,13 @@ $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 
                         <p class="text-xs text-rose-600 font-medium"><?php echo $pct_fru; ?>%</p>
                     </div>
                 </div>
+                <div class="card p-4 flex flex-col md:flex-row md:items-center justify-between border-l-4 border-l-slate-500 bg-slate-50/30">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-600 mb-1">Non-Reader</p>
+                        <h3 class="text-3xl font-bold"><?php echo $non_reader; ?></h3>
+                        <p class="text-xs text-slate-600 font-medium"><?php echo $pct_non; ?>%</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Masterlist -->
@@ -178,20 +212,21 @@ $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 
                                 <th class="py-2 px-3">Student Name</th>
                                 <th class="py-2 px-3">LRN</th>
                                 <th class="py-2 px-3">Grade & Sec</th>
-                                <th class="py-2 px-3">Level</th>
+                                <th class="py-2 px-3">Oral Reading Profile</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php 
                             if(count($students) > 0) {
                                 foreach($students as $s):
-                                    $lvl = $s['current_level'] ?? 'Pending';
+                                    $lvl = $s['oral_reading_profile'] ?? 'Pending';
                                     $mi = !empty($s['mname']) ? strtoupper(substr($s['mname'], 0, 1)) . '.' : '';
                                     $name = htmlspecialchars($s['fname'] . ' ' . $mi . ' ' . $s['lname']);
                                     $lc = 'bg-slate-100 text-slate-600';
                                     if($lvl=='Independent') $lc='bg-emerald-100 text-emerald-800';
                                     if($lvl=='Instructional') $lc='bg-amber-100 text-amber-800';
                                     if($lvl=='Frustration') $lc='bg-rose-100 text-rose-800';
+                                    if($lvl=='Non-Reader') $lc='bg-slate-700 text-white';
                             ?>
                             <tr class="hover:bg-slate-50">
                                 <td class="py-2 px-3 font-medium text-slate-800"><?php echo $name; ?></td>

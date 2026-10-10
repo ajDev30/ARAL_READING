@@ -19,9 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'azure_speech_key',
         'azure_region', 
         'azure_language', 
-        'tts_voice', 
-        'tts_model', 
-        'tts_personality',
         'available_sections'
     ];
     
@@ -35,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Generate .env file for the Python backend
     $env_content = "AZURE_OPENAI_API_KEY=" . ($_POST['azure_openai_key'] ?? '') . "\n";
     $env_content .= "AZURE_SPEECH_KEY=" . ($_POST['azure_speech_key'] ?? '') . "\n";
-    $env_content .= "AZURE_REGION=" . ($_POST['azure_region'] ?? '') . "\n";
+    $env_content .= "AZURE_SPEECH_REGION=" . ($_POST['azure_region'] ?? '') . "\n";
     $env_content .= "AZURE_LANGUAGE=" . ($_POST['azure_language'] ?? '') . "\n";
     $env_content .= "OPENAI_MODEL=" . ($_POST['openai_model'] ?? '') . "\n";
     
@@ -263,29 +260,6 @@ if ($is_enabled && $requirements_met) {
                     <label class="block text-sm font-medium text-slate-700 mb-1">Azure Language</label>
                     <input type="text" name="azure_language" value="en-US" readonly class="w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg cursor-not-allowed">
                     <p class="text-[10px] text-slate-400 mt-1">Must be en-US for this deployment.</p>
-                </div>
-            </div>
-
-            <h3 class="font-bold text-slate-800 text-lg mb-2 mt-8"><i class="fas fa-volume-up text-blue-500 mr-2"></i> OpenAI TTS (Text-To-Speech)</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">TTS Voice</label>
-                    <select name="tts_voice" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        <option value="alloy" <?php echo ($settings['tts_voice'] ?? '') == 'alloy' ? 'selected' : ''; ?>>Alloy</option>
-                        <option value="echo" <?php echo ($settings['tts_voice'] ?? '') == 'echo' ? 'selected' : ''; ?>>Echo</option>
-                        <option value="fable" <?php echo ($settings['tts_voice'] ?? '') == 'fable' ? 'selected' : ''; ?>>Fable</option>
-                        <option value="onyx" <?php echo ($settings['tts_voice'] ?? '') == 'onyx' ? 'selected' : ''; ?>>Onyx</option>
-                        <option value="nova" <?php echo ($settings['tts_voice'] ?? '') == 'nova' ? 'selected' : ''; ?>>Nova</option>
-                        <option value="shimmer" <?php echo ($settings['tts_voice'] ?? '') == 'shimmer' ? 'selected' : ''; ?>>Shimmer</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">TTS Model</label>
-                    <input type="text" name="tts_model" value="<?php echo htmlspecialchars($settings['tts_model'] ?? 'tts-1'); ?>" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">TTS Personality Prompt</label>
-                    <textarea name="tts_personality" rows="3" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($settings['tts_personality'] ?? ''); ?></textarea>
                 </div>
             </div>
 

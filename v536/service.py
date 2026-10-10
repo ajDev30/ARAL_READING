@@ -54,7 +54,7 @@ AZURE_LANG = os.getenv("AZURE_SPEECH_LANGUAGE", "en-US").strip() or "en-US"
 SERVICE_BUILD = "v536-fastapi-1"
 
 
-def load_env_files() -> None:
+def load_env_files(overwrite: bool = False) -> None:
     candidates = [
         os.path.join(os.path.dirname(__file__), ".env"),
         os.path.join(os.path.dirname(__file__), "../.env"),
@@ -75,15 +75,13 @@ def load_env_files() -> None:
                     key, value = line.split("=", 1)
                     key = key.strip().replace("export ", "", 1)
                     value = value.strip().strip("'\"")
-                    if key and value and key not in os.environ:
+                    if key and value and (overwrite or key not in os.environ):
                         os.environ[key] = value
         except OSError:
             pass
 
 
 load_env_files()
-AZURE_KEY = os.getenv("AZURE_SPEECH_KEY", os.getenv("RA_AZURE_KEY", os.getenv("SPEECH_KEY", ""))).strip()
-AZURE_REGION = os.getenv("AZURE_SPEECH_REGION", os.getenv("RA_AZURE_REGION", os.getenv("SPEECH_REGION", "southeastasia"))).strip()
 
 app = FastAPI(title="Reading Assessment Azure Speech Service", version="5.36.0")
 
@@ -102,6 +100,7 @@ async def get_realtime_token(request: Request):
         locale = body.get("locale", "en-US")
         passage = body.get("passage", "")
         
+        load_env_files(overwrite=True)
         openai_key = os.getenv("AZURE_OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "")).strip()
         transcription_model = os.getenv("OPENAI_MODEL", os.getenv("REALTIME_TRANSCRIPTION_MODEL", "whisper-1")).strip()
         if not openai_key:
@@ -420,12 +419,16 @@ class AzureSession:
     def start(self) -> None:
         if speechsdk is None:
             raise RuntimeError(f"Azure Speech SDK import failed: {AZURE_IMPORT_ERROR or 'not installed'}")
-        if not AZURE_KEY or not AZURE_REGION:
+        
+        azure_key = os.getenv("AZURE_SPEECH_KEY", os.getenv("RA_AZURE_KEY", os.getenv("SPEECH_KEY", ""))).strip()
+        azure_region = os.getenv("AZURE_SPEECH_REGION", os.getenv("RA_AZURE_REGION", os.getenv("SPEECH_REGION", "southeastasia"))).strip()
+        
+        if not azure_key or not azure_region:
             raise RuntimeError("AZURE_SPEECH_KEY and AZURE_SPEECH_REGION are required.")
         if not self.reference_text:
             raise RuntimeError("The hidden passage reference text is required for Azure pronunciation assessment.")
 
-        self.speech_config = speechsdk.SpeechConfig(subscription=AZURE_KEY, region=AZURE_REGION)
+        self.speech_config = speechsdk.SpeechConfig(subscription=azure_key, region=azure_region)
         self.speech_config.speech_recognition_language = self.locale
         try:
             self.speech_config.output_format = speechsdk.OutputFormat.Detailed
@@ -796,6 +799,9 @@ class AzureSession:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    load_env_files(overwrite=True)
+    azure_key = os.getenv("AZURE_SPEECH_KEY", os.getenv("RA_AZURE_KEY", os.getenv("SPEECH_KEY", ""))).strip()
+    azure_region = os.getenv("AZURE_SPEECH_REGION", os.getenv("RA_AZURE_REGION", os.getenv("SPEECH_REGION", "southeastasia"))).strip()
     return JSONResponse({
         "status": "ok" if speechsdk is not None else "degraded",
         "service": "readingassessment-azure",
@@ -803,8 +809,8 @@ async def health() -> JSONResponse:
         "build": SERVICE_BUILD,
         "azure_sdk": speechsdk is not None,
         "azure_sdk_version": getattr(speechsdk, "__version__", None) if speechsdk is not None else None,
-        "azure_key_set": bool(AZURE_KEY),
-        "azure_region": AZURE_REGION,
+        "azure_key_set": bool(azure_key),
+        "azure_region": azure_region,
         "protocol": "websocket-pushstream-continuous",
         "pronunciation_mode": "scripted-hidden-reference-enableMiscueFalse",
     })
@@ -812,6 +818,7 @@ async def health() -> JSONResponse:
 
 @app.websocket("/ws/stream")
 async def websocket_stream(websocket: WebSocket) -> None:
+    load_env_files(overwrite=True)
     await websocket.accept()
     loop = asyncio.get_running_loop()
     queue_out: asyncio.Queue = asyncio.Queue()
@@ -904,6 +911,6 @@ if __name__ == "__main__":
         APP_HOST,
         APP_PORT,
         getattr(speechsdk, "__version__", None) if speechsdk is not None else "unavailable",
-        AZURE_REGION,
+        os.getenv("AZURE_SPEECH_REGION", "dynamic"),
     )
     uvicorn.run(app, host=APP_HOST, port=APP_PORT)

@@ -144,7 +144,11 @@ $profiles = $stmt->fetchAll();
                                     } elseif ($prof['instructional_grade'] !== null && $enrolled_grade <= intval($prof['instructional_grade'])) {
                                         $final_status = 'Instructional';
                                     } else {
-                                        $final_status = 'Frustration';
+                                        if ($prof['frustration_grade'] !== null && intval($prof['frustration_grade']) <= 4 && $prof['instructional_grade'] === null && $prof['independent_grade'] === null) {
+                                            $final_status = 'Non-Reader';
+                                        } else {
+                                            $final_status = 'Frustration';
+                                        }
                                     }
                                 }
                                 
@@ -154,6 +158,7 @@ $profiles = $stmt->fetchAll();
                                 if ($final_status === 'Frustration') $status_color = 'bg-rose-100 text-rose-800';
                                 elseif ($final_status === 'Instructional') $status_color = 'bg-amber-100 text-amber-800';
                                 elseif ($final_status === 'Independent') $status_color = 'bg-emerald-100 text-emerald-800';
+                                elseif ($final_status === 'Non-Reader') $status_color = 'bg-slate-700 text-white';
                             ?>
                             <tr class="hover:bg-slate-50">
                                 <td class="py-3 px-4 font-medium text-slate-800"><?php echo htmlspecialchars($prof['fname'] . ' ' . $prof['lname']); ?></td>

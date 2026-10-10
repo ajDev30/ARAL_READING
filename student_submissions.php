@@ -42,7 +42,11 @@ if ($profile) {
         } elseif ($profile['instructional_grade'] !== null && $enrolled_grade <= intval($profile['instructional_grade'])) {
             $final_status = 'Instructional';
         } else {
-            $final_status = 'Frustration';
+            if ($profile['frustration_grade'] !== null && intval($profile['frustration_grade']) <= 4 && $profile['instructional_grade'] === null && $profile['independent_grade'] === null) {
+                $final_status = 'Non-Reader';
+            } else {
+                $final_status = 'Frustration';
+            }
         }
     }
     
@@ -61,18 +65,28 @@ if ($profile) {
         $status_bg = 'bg-emerald-50 border-emerald-200';
         $status_text = 'text-emerald-800';
         $icon = 'fa-check-circle text-emerald-500';
+    } elseif ($final_status === 'Non-Reader') {
+        $status_bg = 'bg-slate-700 border-slate-800';
+        $status_text = 'text-white';
+        $icon = 'fa-times-circle text-white';
     }
 }
 
 $stmt = $pdo->prepare("
     SELECT a.*, c.title as course_title 
     FROM reading_attempts a
-    LEFT JOIN course_assessments c ON a.passage_id = c.id AND (a.phase = 'Course-Pre-Test' OR a.phase = 'Course-Post-Test')
-    WHERE a.user_id = ?
+    LEFT JOIN course_assessments c ON a.passage_id = c.id
+    WHERE a.user_id = ? AND a.phase = 'Pre-Test'
     ORDER BY a.created_at DESC
 ");
 $stmt->execute([$student_id]);
 $attempts = $stmt->fetchAll();
+
+// Fetch GST Result
+$stmtGST = $pdo->prepare("SELECT * FROM gst_results WHERE user_id = ? ORDER BY completed_at DESC LIMIT 1");
+$stmtGST->execute([$student_id]);
+$gst_result = $stmtGST->fetch();
+
 
 ?>
 <!DOCTYPE html>
@@ -180,7 +194,62 @@ $attempts = $stmt->fetchAll();
         </div>
         <?php endif; ?>
 
-        <?php $target_user_id = $student_id; include 'comparison_widget.php'; ?>
+        <?php if ($gst_result): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Group Screening Test (GST) Result</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-slate-500 mb-1">Enrolled Grade</p>
+                    <p class="font-bold text-slate-800">Grade <?php echo htmlspecialchars($gst_result['grade_level']); ?></p>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500 mb-1">GST Score</p>
+                    <p class="font-bold text-slate-800"><?php echo htmlspecialchars($gst_result['score'] . ' / ' . $gst_result['total_items']); ?></p>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500 mb-1">Phil-IRI Category</p>
+                    <p class="font-bold text-slate-800">
+                        <?php 
+                        if (!empty($gst_result['gst_category'])) {
+                            echo htmlspecialchars($gst_result['gst_category']);
+                        } else {
+                            if ($gst_result['score'] >= 14) {
+                                echo "Independent";
+                            } else {
+                                echo "Needs Individual Assessment";
+                            }
+                        }
+                        ?>
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500 mb-1">Assigned Starting Grade</p>
+                    <p class="font-bold <?php echo $gst_result['needs_individual_assessment'] ? 'text-blue-600' : 'text-slate-800'; ?>">
+                        <?php echo $gst_result['needs_individual_assessment'] ? 'Grade ' . htmlspecialchars($gst_result['starting_grade']) : 'N/A'; ?>
+                    </p>
+                </div>
+            </div>
+            <?php if ($gst_result['needs_individual_assessment']): ?>
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    <p class="mb-1"><strong><i class="fas fa-info-circle mr-1"></i> Individualized Reading Assessment: REQUIRED.</strong></p>
+                    <ul class="list-disc pl-5 mt-1 space-y-1">
+                        <li>The student scored below 14 on the GST.</li>
+                        <li>They must take individualized passages starting at <strong>Grade <?php echo htmlspecialchars($gst_result['starting_grade']); ?></strong> based on the Phil-IRI cascading rules.</li>
+                        <li>The system will continue presenting passages until they score <strong>Instructional or Independent at their Enrolled Grade</strong>, OR until they hit <strong>Frustration</strong>, identifying their final oral reading profile.</li>
+                    </ul>
+                </div>
+            <?php else: ?>
+                <div class="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <p class="text-sm text-emerald-800"><i class="fas fa-check-circle mr-2"></i><strong>Individualized Reading Assessment: NOT REQUIRED.</strong> The student scored 14 or higher (Independent) on their enrolled grade's GST. No further cascading assessment is needed.</p>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php else: ?>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-2">Group Screening Test (GST) Result</h2>
+            <p class="text-slate-500">No GST result found for this student.</p>
+        </div>
+        <?php endif; ?>
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 class="text-xl font-bold text-slate-800 mb-2">Individual Passages</h2>

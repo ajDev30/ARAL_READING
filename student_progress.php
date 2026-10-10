@@ -27,11 +27,15 @@ $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $labels = [];
 $accuracy_data = [];
 $speed_data = [];
+$wcpm_data = [];
 
 foreach($attempts as $att) {
     $labels[] = date('M d', strtotime($att['created_at']));
-    $accuracy_data[] = floatval($att['accuracy_score']);
-    $speed_data[] = floatval($att['reading_speed']);
+    $acc = floatval($att['accuracy_score']);
+    $spd = floatval($att['reading_speed']);
+    $accuracy_data[] = $acc;
+    $speed_data[] = $spd;
+    $wcpm_data[] = round($spd * ($acc / 100));
 }
 
 ?>
@@ -145,7 +149,7 @@ foreach($attempts as $att) {
         <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
             
             <?php $target_user_id = $user_id; include 'comparison_widget.php'; ?>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:p-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:p-8">
                 <!-- Accuracy Chart -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                     <h3 class="font-bold text-slate-700 mb-4 text-sm flex items-center"><i class="fas fa-crosshairs mr-2 text-blue-500"></i> Reading Accuracy Trend</h3>
@@ -159,6 +163,14 @@ foreach($attempts as $att) {
                     <h3 class="font-bold text-slate-700 mb-4 text-sm flex items-center"><i class="fas fa-stopwatch mr-2 text-purple-500"></i> Reading Speed (WPM)</h3>
                     <div style="height: 300px;">
                         <canvas id="speedChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- WCPM Chart -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:col-span-2 lg:col-span-1">
+                    <h3 class="font-bold text-slate-700 mb-4 text-sm flex items-center"><i class="fas fa-tachometer-alt mr-2 text-emerald-500"></i> WCPM Trend</h3>
+                    <div style="height: 300px;">
+                        <canvas id="wcpmChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -182,6 +194,7 @@ foreach($attempts as $att) {
 const labels = <?php echo json_encode($labels); ?>;
     const accData = <?php echo json_encode($accuracy_data); ?>;
     const speedData = <?php echo json_encode($speed_data); ?>;
+    const wcpmData = <?php echo json_encode($wcpm_data); ?>;
 
     if (labels.length > 0) {
         new Chart(document.getElementById('accuracyChart'), {
@@ -214,6 +227,27 @@ const labels = <?php echo json_encode($labels); ?>;
                     data: speedData,
                     borderColor: '#8b5cf6',
                     backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { min: 0 } }
+            }
+        });
+
+        new Chart(document.getElementById('wcpmChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Words Correct Per Minute',
+                    data: wcpmData,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     borderWidth: 2,
                     tension: 0.3,
                     fill: true

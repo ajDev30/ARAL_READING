@@ -1,6 +1,12 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bullseye
 
 WORKDIR /app
+
+# Remove debian-security repo if it fails, and install libasound2 required by Azure Speech SDK
+RUN sed -i '/debian-security/d' /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y libasound2 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY requirements.txt .

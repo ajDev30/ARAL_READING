@@ -36,12 +36,12 @@ if (strpos($attempt['phase'], 'Course') !== false) {
         $passage_text = $row['passage_text'] ?: '';
     }
 } else {
-    $stmt = $pdo->prepare("SELECT questions_json, text_content FROM reading_passages WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT questions_json, passage_text FROM reading_passages WHERE id = ?");
     $stmt->execute([$attempt['passage_id']]);
     $row = $stmt->fetch();
     if ($row) {
         $q_json = $row['questions_json'] ?: '[]';
-        $passage_text = $row['text_content'] ?: '';
+        $passage_text = $row['passage_text'] ?: '';
     }
 }
 $answers_json = $attempt['answers_json'] ?: '{}';
@@ -133,7 +133,7 @@ $has_ops = strpos($eval_data, 'ops') !== false;
             ?>
             <a href="<?php echo $return_url; ?>" class="text-slate-400 hover:text-slate-600 mr-4"><i class="fas fa-arrow-left"></i></a>
             <i class="fas fa-search text-blue-500 text-2xl mr-3"></i>
-            <h1 class="font-bold text-lg text-slate-800">Reviewing: <?php echo htmlspecialchars($attempt['fname'] . ' ' . $attempt['lname']); ?> (Grade <?php echo htmlspecialchars($attempt['passage_grade']); ?>)</h1>
+            <h1 class="font-bold text-lg text-slate-800">Reviewing: <?php echo htmlspecialchars(($attempt['fname'] ?? '') . ' ' . ($attempt['lname'] ?? '')); ?> (Grade <?php echo htmlspecialchars($attempt['passage_grade'] ?? 'N/A'); ?>)</h1>
         </div>
         <div>
             <button id="saveOverridesBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-medium shadow transition">Save Official Scores</button>
@@ -146,7 +146,7 @@ $has_ops = strpos($eval_data, 'ops') !== false;
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <h3 class="font-bold text-slate-800 mb-4 border-b pb-2">Audio Recording</h3>
                 <?php if ($attempt['audio_path']): ?>
-                    <audio src="<?php echo htmlspecialchars($attempt['audio_path']); ?>" controls class="w-full"></audio>
+                    <audio src="<?php echo htmlspecialchars($attempt['audio_path'] ?? ''); ?>" controls class="w-full"></audio>
                 <?php else: ?>
                     <p class="text-slate-500 text-sm">No audio recording available for this attempt.</p>
                 <?php endif; ?>
@@ -170,7 +170,7 @@ $has_ops = strpos($eval_data, 'ops') !== false;
                     </div>
                     <div class="bg-slate-50 p-3 rounded text-center">
                         <div class="text-xs text-slate-500 uppercase font-bold">System Profile</div>
-                        <h4 id="passageClassification" class="text-md font-bold text-slate-800 mt-1"><?php echo htmlspecialchars($attempt['oral_reading_profile']); ?></h4>
+                        <h4 id="passageClassification" class="text-md font-bold text-slate-800 mt-1"><?php echo htmlspecialchars($attempt['oral_reading_profile'] ?? 'Pending'); ?></h4>
                     </div>
                 </div>
 

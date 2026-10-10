@@ -514,7 +514,7 @@ function stopAzureStreaming() {
 
 async function connectOpenAITranscription({ referenceText = "", locale, stream, sessionId = recordingSessionId }) {
   if (!window.RTCPeerConnection) throw new Error("This browser does not support WebRTC.");
-  const tokenEndpoint = `http://${window.location.hostname}:8011/api/realtime/token`;
+  const tokenEndpoint = `${window.location.protocol}//${window.location.hostname}:8011/api/realtime/token`;
   const payload = { locale, passage: referenceText };
   console.log("[OpenAI Realtime] transcription connect model=gpt-live-transcribe context=keywords-only");
 
@@ -1300,6 +1300,16 @@ function renderPerformance(assessment, data) {
   els.wpm.textContent = wpm == null ? "—" : wpm.toFixed(0);
   els.readingAccuracy.textContent = accuracy == null ? "—" : `${accuracy.toFixed(1)}%`;
   renderMiscueStrip(assessment.counts);
+
+  if (data) {
+    data.readingAccuracy = accuracy;
+    data.accuracyScore = accuracy;
+    data.wpm = wpm;
+    data.durationSeconds = duration;
+    data.duration = duration;
+    data.miscuesJson = JSON.stringify(assessment.counts);
+    data.miscues = assessment.counts;
+  }
 
 }
 

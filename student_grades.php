@@ -176,6 +176,8 @@ $course_attempts = $stmtCourse->fetchAll(PDO::FETCH_ASSOC);
                                     <th class="p-4 border-b font-semibold">Date</th>
                                     <th class="p-4 border-b font-semibold">Type</th>
                                     <th class="p-4 border-b font-semibold">Level/Title</th>
+                                    <th class="p-4 border-b font-semibold">WPM</th>
+                                    <th class="p-4 border-b font-semibold">WCPM</th>
                                     <th class="p-4 border-b font-semibold">Accuracy</th>
                                     <th class="p-4 border-b font-semibold">Comprehension</th>
                                     <th class="p-4 border-b font-semibold">Classification</th>
@@ -208,6 +210,12 @@ $course_attempts = $stmtCourse->fetchAll(PDO::FETCH_ASSOC);
                                         <?php if ($att['phase'] === 'Pre-Test') echo "Grade " . $att['passage_grade'];
                                         else echo htmlspecialchars($att['passage_title']); ?>
                                     </td>
+                                    <?php 
+                                        $wpm = floatval($att['reading_speed']); 
+                                        $wcpm = round($wpm * (floatval($att['accuracy_score']) / 100)); 
+                                    ?>
+                                    <td class="p-4 text-slate-700 font-medium"><?php echo round($wpm); ?></td>
+                                    <td class="p-4 text-slate-700 font-medium"><?php echo $wcpm; ?></td>
                                     <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
                                     <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
                                     <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold <?php echo $badge; ?>"><?php echo $class; ?></span></td>
@@ -235,6 +243,8 @@ $course_attempts = $stmtCourse->fetchAll(PDO::FETCH_ASSOC);
                                     <th class="p-4 border-b font-semibold">Date</th>
                                     <th class="p-4 border-b font-semibold">Type</th>
                                     <th class="p-4 border-b font-semibold">Course Title</th>
+                                    <th class="p-4 border-b font-semibold">WPM</th>
+                                    <th class="p-4 border-b font-semibold">WCPM</th>
                                     <th class="p-4 border-b font-semibold">Accuracy</th>
                                     <th class="p-4 border-b font-semibold">Comprehension</th>
                                 </tr>
@@ -253,6 +263,12 @@ $course_attempts = $stmtCourse->fetchAll(PDO::FETCH_ASSOC);
                                     <td class="p-4 text-slate-700 font-medium">
                                         <?php echo htmlspecialchars($att['passage_title']); ?>
                                     </td>
+                                    <?php 
+                                        $wpm = floatval($att['reading_speed']); 
+                                        $wcpm = round($wpm * (floatval($att['accuracy_score']) / 100)); 
+                                    ?>
+                                    <td class="p-4 text-slate-700 font-medium"><?php echo round($wpm); ?></td>
+                                    <td class="p-4 text-slate-700 font-medium"><?php echo $wcpm; ?></td>
                                     <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['accuracy_score'], 1); ?>%</td>
                                     <td class="p-4 font-bold text-slate-700"><?php echo number_format($att['comprehension_score'], 1); ?>%</td>
                                 </tr>

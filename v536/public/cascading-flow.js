@@ -255,6 +255,15 @@ function showGSTTransitionUI() {
                 <p><strong>Individualized Reading Assessment:</strong> <span class="text-danger">REQUIRED</span></p>
                 <hr>
                 <h4 class="text-primary mt-3"><strong>Starting Grade: GRADE ${gstResult.startingGrade}</strong></h4>
+                <div class="mt-3 p-3 bg-light border rounded text-muted" style="font-size: 0.85em; text-align: left;">
+                    <strong><i class="fas fa-info-circle"></i> Why Grade ${gstResult.startingGrade} and what happens next?</strong><br>
+                    Based on Phil-IRI rules, a GST score of ${gstResult.score} falls into the category of: <em>${gstResult.category}</em>. <br>
+                    Because of this score, the system automatically assigns a starting reading passage that is <strong>${studentCurrentGrade - gstResult.startingGrade} grade level(s) lower</strong> than your enrolled grade to find your comfortable reading level.<br><br>
+                    <strong>Cascading Rules:</strong><br>
+                    &bull; If you score <strong>Instructional or Independent</strong> on a passage, you will <strong>move UP</strong> to the next grade level.<br>
+                    &bull; If you score <strong>Frustration</strong> on a passage, you will <strong>move DOWN</strong> to a lower grade level.<br>
+                    &bull; The system continues to adjust the difficulty until it identifies your final oral reading profile or until you successfully read a passage at your enrolled grade.
+                </div>
             </div>
         `;
         
@@ -332,15 +341,32 @@ function determineNextAssessmentGrade() {
     let lastCls = testedGrades[lastTested].classification;
 
     let nextGrade = lastTested;
-    if (lastCls === "Independent" || lastCls === "Instructional") {
-        nextGrade = lastTested + 1;
-    } else if (lastCls === "Frustration") {
-        nextGrade = lastTested - 1;
+    
+    // PHIL-IRI STOPPING RULES:
+    // 1. Stop if they reach their enrolled grade level and pass it (Instructional/Independent).
+    if (lastTested === parseInt(studentCurrentGrade) && (lastCls === "Instructional" || lastCls === "Independent")) {
+        return null;
+    }
+    
+    if (lastCls === "Frustration") {
+        // 2. Stop if they were going UP and hit Frustration (ceiling found).
+        if (hasInd || hasInst) {
+            return null;
+        } else {
+            // If they started at Frustration, they must go DOWN.
+            nextGrade = lastTested - 1;
+        }
+    } else if (lastCls === "Instructional" || lastCls === "Independent") {
+        // 3. Stop if they went DOWN from Frustration and finally found their Instructional/Independent level.
+        if (hasFrus) {
+            return null;
+        } else {
+            // Otherwise, they are doing well, so keep going UP.
+            nextGrade = lastTested + 1;
+        }
     }
 
     if (testedGrades[nextGrade] || nextGrade > 10 || nextGrade < 4) {
-        // If we need an Independent level but would go below Grade 4, we must stop.
-        // If we need a Frustration level but would go above Grade 10, we must stop.
         return null; // Force exit if out of bounds
     }
 

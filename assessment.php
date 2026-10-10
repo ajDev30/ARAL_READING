@@ -165,9 +165,9 @@ if(!$gradeNum) $gradeNum = 7;
         const API_TOKEN = "session-based"; 
         window.STUDENT_GRADE = <?php echo $gradeNum; ?>;
     </script>
-    <script src="v536/public/assessment-core.js?v=2.0.27"></script>
-    <script src="v536/public/app.js?v=2.0.27"></script>
-    <script src="v536/public/cascading-flow.js?v=2.0.27"></script>
+    <script src="v536/public/assessment-core.js?v=<?php echo time(); ?>"></script>
+    <script src="v536/public/app.js?v=<?php echo time(); ?>"></script>
+    <script src="v536/public/cascading-flow.js?v=<?php echo time(); ?>"></script>
 
     <script>
         window.toggleSidebar = function() {

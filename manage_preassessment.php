@@ -149,8 +149,15 @@ $stmt->execute([$grade]);
 $record = $stmt->fetch(PDO::FETCH_OBJ);
 
 if (!$record) {
+    $stmt = $pdo->prepare("SELECT * FROM reading_passages WHERE grade_level LIKE ? AND grade_level LIKE '%PRE-TEST%' LIMIT 1");
+    $stmt->execute([str_replace('Grade ', 'GRADE ', $grade) . '%']);
+    $record = $stmt->fetch(PDO::FETCH_OBJ);
+}
+
+if (!$record) {
     $pdo->prepare("INSERT INTO reading_passages (title, grade_level, passage_text, questions_json) VALUES (?, ?, '', '[]')")
         ->execute(["$grade Assessment", $grade]);
+    $stmt = $pdo->prepare("SELECT * FROM reading_passages WHERE grade_level = ?");
     $stmt->execute([$grade]);
     $record = $stmt->fetch(PDO::FETCH_OBJ);
 }

@@ -94,11 +94,15 @@ if ($action === 'get_passage') {
     $stmt->execute([$grade]);
     $passage = $stmt->fetch(PDO::FETCH_ASSOC);
     if(!$passage) {
-        // Fallback or empty
-        echo json_encode(["passage_text" => ""]);
-    } else {
-        echo json_encode($passage);
+        $stmt = $pdo->prepare("SELECT id, title, passage_text, questions_json FROM reading_passages WHERE grade_level LIKE ? AND grade_level LIKE '%PRE-TEST%' LIMIT 1");
+        $stmt->execute([str_replace('Grade ', 'GRADE ', $grade) . '%']);
+        $passage = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$passage) {
+            echo json_encode(["passage_text" => ""]);
+            exit;
+        }
     }
+    echo json_encode($passage);
     exit;
 }
 
@@ -204,7 +208,12 @@ if ($action === 'submit_attempt') {
     // Find passage ID
     $stmt = $pdo->prepare("SELECT id FROM reading_passages WHERE grade_level = ? LIMIT 1");
     $stmt->execute(["Grade $grade"]);
-    $pid = $stmt->fetchColumn() ?: 0;
+    $pid = $stmt->fetchColumn();
+    if (!$pid) {
+        $stmt = $pdo->prepare("SELECT id FROM reading_passages WHERE grade_level LIKE ? AND grade_level LIKE '%PRE-TEST%' LIMIT 1");
+        $stmt->execute(["GRADE $grade%"]);
+        $pid = $stmt->fetchColumn() ?: 0;
+    }
 
     $stmt = $pdo->prepare("INSERT INTO reading_attempts (user_id, passage_id, passage_grade, accuracy_score, comprehension_score, oral_reading_profile, reading_time, reading_speed, miscues_json, evaluation_data, audio_path, status, phase, answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed', 'Pre-Test', ?)");
     $stmt->execute([$user_id, $pid, $grade, $acc, $comp, $class, $time, $speed, $miscues, $eval_data, $audio_path, $answers_json]);

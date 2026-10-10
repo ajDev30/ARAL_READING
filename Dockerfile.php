@@ -12,6 +12,8 @@ COPY . /var/www/html/
 # Ensure uploads directories exist and have proper permissions
 RUN mkdir -p /var/www/html/uploads/audio /var/www/html/uploads/images \
     && chown -R www-data:www-data /var/www/html/uploads \
-    && chmod -R 775 /var/www/html/uploads
+    && chmod -R 775 /var/www/html/uploads \
+    && touch /var/www/html/v536/.env \
+    && chown www-data:www-data /var/www/html/v536/.env
 
 EXPOSE 80

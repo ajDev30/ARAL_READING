@@ -328,8 +328,8 @@ document.getElementById('submitTestBtn').addEventListener('click', async () => {
 });
 </script>
 
-<script src="v536/public/assessment-core.js"></script>
-<script src="v536/public/app.js"></script>
+<script src="v536/public/assessment-core.js?v=<?php echo time(); ?>"></script>
+<script src="v536/public/app.js?v=<?php echo time(); ?>"></script>
 
 
     <script>

@@ -21,7 +21,7 @@ $stmt = $pdo->query("
         FROM gst_results
         WHERE id IN (SELECT MAX(id) FROM gst_results GROUP BY user_id)
     ) g ON u.id = g.user_id
-    WHERE u.role = 'student' AND (rp.id IS NOT NULL OR g.user_id IS NOT NULL)
+    WHERE u.role = 'student' AND (rp.user_id IS NOT NULL OR g.user_id IS NOT NULL)
     ORDER BY COALESCE(rp.updated_at, g.completed_at) DESC
 ");
 $profiles = $stmt->fetchAll();

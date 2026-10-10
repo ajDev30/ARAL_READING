@@ -610,14 +610,39 @@ function showFinalProfileUI(msg) {
     if(transitionSection) transitionSection.classList.add('d-none');
     
     const div = document.createElement('div');
-    div.className = 'container text-center mt-5';
+    div.className = 'container text-center mt-5 mb-5';
     
+    let enrolledGrade = parseInt(window.STUDENT_GRADE) || 7;
+    let finalStatus = 'Pending';
+    
+    if (msg.includes("No individualized assessment required")) {
+        finalStatus = 'Independent';
+    } else if (readingProfile.independentGrade || readingProfile.instructionalGrade || readingProfile.frustrationGrade) {
+        if (readingProfile.independentGrade && enrolledGrade <= parseInt(readingProfile.independentGrade)) {
+            finalStatus = 'Independent';
+        } else if (readingProfile.instructionalGrade && enrolledGrade <= parseInt(readingProfile.instructionalGrade)) {
+            finalStatus = 'Instructional';
+        } else {
+            if (readingProfile.frustrationGrade && parseInt(readingProfile.frustrationGrade) <= 4 && !readingProfile.instructionalGrade && !readingProfile.independentGrade) {
+                finalStatus = 'Non-Reader';
+            } else {
+                finalStatus = 'Frustration';
+            }
+        }
+    }
+    
+    let badgeColor = 'badge-secondary';
+    if (finalStatus === 'Independent') badgeColor = 'badge-success';
+    if (finalStatus === 'Instructional') badgeColor = 'badge-warning';
+    if (finalStatus === 'Frustration') badgeColor = 'badge-danger';
+    if (finalStatus === 'Non-Reader') badgeColor = 'badge-dark';
+
     let extraExplanation = '';
     if (msg.includes("No individualized assessment required")) {
         extraExplanation = `
-        <div class="alert alert-info mt-4 text-left" style="font-size: 0.9em; max-width: 600px; margin: 0 auto;">
-            <strong><i class="fas fa-info-circle"></i> Why are my profiles N/A?</strong><br>
-            Because you scored 14 or higher (Independent) on your Group Screening Test, Phil-IRI rules state you do not need further individualized oral reading assessments. You are automatically classified as an <strong>Independent</strong> reader for your enrolled grade.
+        <div class="alert alert-success mt-3 text-left" style="font-size: 0.9em;">
+            <strong><i class="fas fa-star"></i> GST Exemption (Phil-IRI Rule)</strong><br>
+            Because you scored 14 or higher on your Group Screening Test, Phil-IRI rules state you do not need further individualized oral reading assessments. You are automatically classified as an <strong>Independent</strong> reader for your enrolled grade.
         </div>`;
     }
 
@@ -625,15 +650,42 @@ function showFinalProfileUI(msg) {
         <div class="card shadow p-5">
             <h2 class="text-success mb-3"><i class="fas fa-check-circle"></i> Assessment Complete</h2>
             <p class="lead">${msg}</p>
+            
             ${extraExplanation}
-            <hr class="mt-4">
-            <h4 class="mt-4">Final Reading Profile</h4>
-            <div class="row mt-4">
-                <div class="col-4"><strong>Independent:</strong><br>Grade ${readingProfile.independentGrade || 'N/A'}</div>
-                <div class="col-4"><strong>Instructional:</strong><br>Grade ${readingProfile.instructionalGrade || 'N/A'}</div>
-                <div class="col-4"><strong>Frustration:</strong><br>Grade ${readingProfile.frustrationGrade || 'N/A'}</div>
+
+            <div class="mt-4 text-center">
+                <h4 class="text-muted mb-2">Your Oral Reading Profile</h4>
+                <span class="badge ${badgeColor} p-3 text-uppercase shadow-sm" style="font-size: 1.4em; letter-spacing: 1px;">${finalStatus}</span>
             </div>
-            <a href="dashboard_student.php" class="btn btn-primary mt-5">Return to Dashboard</a>
+
+            <div class="row mt-5 mb-3 text-center border-top border-bottom py-4 bg-light">
+                <div class="col-4">
+                    <div class="text-success font-weight-bold mb-1"><i class="fas fa-smile"></i> Independent</div>
+                    <div class="h5 mb-0">Grade ${readingProfile.independentGrade || 'N/A'}</div>
+                </div>
+                <div class="col-4 border-left border-right">
+                    <div class="text-warning font-weight-bold mb-1"><i class="fas fa-meh"></i> Instructional</div>
+                    <div class="h5 mb-0">Grade ${readingProfile.instructionalGrade || 'N/A'}</div>
+                </div>
+                <div class="col-4">
+                    <div class="text-danger font-weight-bold mb-1"><i class="fas fa-frown"></i> Frustration</div>
+                    <div class="h5 mb-0">Grade ${readingProfile.frustrationGrade || 'N/A'}</div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-left p-4 rounded border" style="font-size: 0.85em; color: #444; background: #fdfdfd;">
+                <h5 class="text-primary mb-3" style="font-size: 1.1em;"><i class="fas fa-info-circle"></i> How Grading Works (Phil-IRI)</h5>
+                <p>The Philippine Informal Reading Inventory (Phil-IRI) determines your reading level based on your performance on reading passages. Your final profile is determined by your enrolled grade (Grade ${enrolledGrade}) versus the highest passage level you successfully read.</p>
+                <ul class="mb-3">
+                    <li class="mb-2"><strong>Independent:</strong> You can read and understand the text with ease (Word Reading Accuracy &ge; 97% <strong>and</strong> Comprehension &ge; 80%).</li>
+                    <li class="mb-2"><strong>Instructional:</strong> You can read the text but may need teacher assistance (Word Reading 90-96% <strong>or</strong> Comprehension 59-79%).</li>
+                    <li class="mb-2"><strong>Frustration:</strong> The text is too difficult (Word Reading Accuracy &le; 89% <strong>or</strong> Comprehension &le; 58%).</li>
+                    <li><strong>Non-Reader:</strong> You struggled significantly at the lowest available passage (Grade 4) without passing any higher levels.</li>
+                </ul>
+                <p class="mb-0 text-muted"><em>Transparency Notice: Your final rating reflects DepEd's standard Phil-IRI cascading logic, testing you across different grade passages until your reading ceiling and floor are identified.</em></p>
+            </div>
+
+            <a href="dashboard_student.php" class="btn btn-primary btn-lg mt-5 px-5 shadow-sm">Return to Dashboard <i class="fas fa-arrow-right ml-2"></i></a>
         </div>
     `;
     document.querySelector('.shell').appendChild(div);

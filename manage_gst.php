@@ -444,6 +444,7 @@ function renderQ() {
         list.innerHTML = '<div class="text-slate-400 py-8 text-center border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">No comprehension questions added yet.</div>';
     }
 
+    let qNum = 1;
     questions.forEach((q, idx) => {
         const card = document.createElement('div');
         card.className = "bg-white border border-slate-200 rounded-lg p-5 relative shadow-sm hover:shadow-md transition";
@@ -455,7 +456,7 @@ function renderQ() {
             contentHtml = `
                 <div class="mb-3">
                     <label class="block text-sm font-bold text-slate-700 mb-1">Question:</label>
-                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, \'question\', this.value)">${escapeHtml(q.question || "")}</textarea>
+                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, 'question', this.value)">${escapeHtml(q.question || "")}</textarea>
                 </div>
                 <div class="mb-2 text-sm font-bold text-slate-700">Choices: <span class="font-normal text-slate-500">(Select the radio button to mark correct answer)</span></div>
                 <div class="space-y-2 mb-3">
@@ -474,7 +475,7 @@ function renderQ() {
             contentHtml = `
                 <div class="mb-3">
                     <label class="block text-sm font-bold text-slate-700 mb-1">Statement:</label>
-                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, \'question\', this.value)">${escapeHtml(q.question || "")}</textarea>
+                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, 'question', this.value)">${escapeHtml(q.question || "")}</textarea>
                 </div>
                 <div class="flex items-center text-sm font-bold text-slate-700">
                     Correct Answer: 
@@ -493,7 +494,7 @@ function renderQ() {
             contentHtml = `
                 <div class="mb-3">
                     <label class="block text-sm font-bold text-slate-700 mb-1">Instruction / Prompt:</label>
-                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, \'question\', this.value)">${escapeHtml(q.question || "")}</textarea>
+                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, 'question', this.value)">${escapeHtml(q.question || "")}</textarea>
                 </div>
                 
                 <div class="mb-3 flex flex-wrap items-center justify-between bg-slate-50 p-3 rounded border border-slate-200 gap-2">
@@ -539,15 +540,23 @@ function renderQ() {
             contentHtml = `
                 <div class="mb-1">
                     <label class="block text-sm font-bold text-slate-700 mb-1">Instruction Text:</label>
-                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, \'question\', this.value)">${escapeHtml(q.question || "")}</textarea>
+                    <textarea class="tinymce-q w-full border-slate-300 rounded text-sm p-2 bg-slate-50 focus:bg-white border focus:ring-1 focus:ring-blue-500 outline-none" rows="2" data-idx="${idx}" oninput="updateQProp(${idx}, 'question', this.value)">${escapeHtml(q.question || "")}</textarea>
                 </div>
             `;
+        }
+
+        let displayNumHtml = '';
+        if (q.type !== 'description') {
+            displayNumHtml = `<span class="font-bold text-slate-400 mr-3 text-lg">#${qNum}</span>`;
+            qNum++;
+        } else {
+            displayNumHtml = `<span class="text-slate-400 mr-3 text-lg" title="Instruction/Description (No Number)"><i class="fas fa-info-circle"></i></span>`;
         }
 
         card.innerHTML = `
             <div class="flex justify-between items-center mb-3 pb-3 border-b border-slate-100">
                 <div class="flex items-center">
-                    <span class="font-bold text-slate-400 mr-3 text-lg">#${idx + 1}</span>
+                    ${displayNumHtml}
                     <span class="${typeColor} text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide">${typeName}</span>
                 </div>
                 <div class="flex space-x-1">

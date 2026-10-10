@@ -598,11 +598,22 @@ function showFinalProfileUI(msg) {
     
     const div = document.createElement('div');
     div.className = 'container text-center mt-5';
+    
+    let extraExplanation = '';
+    if (msg.includes("No individualized assessment required")) {
+        extraExplanation = `
+        <div class="alert alert-info mt-4 text-left" style="font-size: 0.9em; max-width: 600px; margin: 0 auto;">
+            <strong><i class="fas fa-info-circle"></i> Why are my profiles N/A?</strong><br>
+            Because you scored 14 or higher (Independent) on your Group Screening Test, Phil-IRI rules state you do not need further individualized oral reading assessments. You are automatically classified as an <strong>Independent</strong> reader for your enrolled grade.
+        </div>`;
+    }
+
     div.innerHTML = `
         <div class="card shadow p-5">
             <h2 class="text-success mb-3"><i class="fas fa-check-circle"></i> Assessment Complete</h2>
             <p class="lead">${msg}</p>
-            <hr>
+            ${extraExplanation}
+            <hr class="mt-4">
             <h4 class="mt-4">Final Reading Profile</h4>
             <div class="row mt-4">
                 <div class="col-4"><strong>Independent:</strong><br>Grade ${readingProfile.independentGrade || 'N/A'}</div>

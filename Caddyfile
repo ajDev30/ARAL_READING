@@ -1,0 +1,7 @@
+aral-reading.tech {
+    reverse_proxy web:80
+}
+
+aral-reading.tech:8011 {
+    reverse_proxy speech-service:8011
+}

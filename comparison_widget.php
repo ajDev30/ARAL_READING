@@ -126,54 +126,63 @@ if (!function_exists('getProfLevel')) {
                     
                     $fluencyStable = $wcpmDiff >= -2 && $wpmDiff >= -2;
                     
+                    $levelPromoted = false;
                     if ($postLevel > $preLevel || (($accImproved || $compImproved) && $fluencyStable)) {
                         $resultText = 'Improved';
                         $resultColor = 'text-emerald-600';
                         $resultBg = 'bg-emerald-50 border-emerald-200';
                         $icon = 'fa-arrow-trend-up text-emerald-500';
-                        
-                        if ($postLevel > $preLevel) {
-                            $rec = "The student's overall reading profile successfully improved from {$pre['prof']} to {$post['prof']}.";
-                        } else {
-                            $rec = "The student showed clear improvement in " . ($accImproved ? "Accuracy " : "") . ($compImproved ? "Comprehension" : "") . " while maintaining reading fluency.";
-                        }
+                        $levelPromoted = ($postLevel > $preLevel);
                     } else if ($postLevel < $preLevel || ($accDeclined && $compDeclined)) {
                         $resultText = 'Declined';
                         $resultColor = 'text-rose-600';
                         $resultBg = 'bg-rose-50 border-rose-200';
                         $icon = 'fa-arrow-trend-down text-rose-500';
-                        
-                        if ($postLevel < $preLevel) {
-                            $rec = "The student's overall reading profile dropped from {$pre['prof']} to {$post['prof']}. Additional support is needed.";
-                        } else {
-                            $rec = "Both Accuracy and Comprehension declined meaningfully. The teacher should review the student's reading needs and provide additional support.";
-                        }
                     } else if ($accImproved || $compImproved) {
                         $resultText = 'Partial Progress';
                         $resultColor = 'text-blue-600';
                         $resultBg = 'bg-blue-50 border-blue-200';
                         $icon = 'fa-arrow-up-right-dots text-blue-500';
-                        $rec = "The reading profile remains {$pre['prof']}, but the student showed measurable improvement in " . ($accImproved ? "Accuracy" : "Comprehension") . ".";
                     } else {
                         $resultText = 'Maintained';
                         $resultColor = 'text-amber-600';
                         $resultBg = 'bg-amber-50 border-amber-200';
                         $icon = 'fa-minus text-amber-500';
-                        $rec = "The student's reading profile remains at {$pre['prof']} and metrics are generally stable with no meaningful improvement or decline.";
                     }
                 } else if (!$hasPost) {
                     $resultText = 'In Progress';
                     $resultColor = 'text-blue-600';
                     $resultBg = 'bg-blue-50 border-blue-200';
                     $icon = 'fa-spinner text-blue-500';
-                    $rec = "The student has completed the Pre-Test. They should now review the course material and proceed to take the Post-Test when ready.";
                 } else if (!$hasPre) {
                     $resultText = 'Post-Test Only';
                     $resultColor = 'text-slate-600';
                     $resultBg = 'bg-slate-50 border-slate-200';
                     $icon = 'fa-check text-slate-500';
-                    $rec = "The student completed the Post-Test without a recorded Pre-Test.";
                 }
+
+                // Prepare metrics for dynamic recommendation resolution
+                $improvedAreas = [];
+                if (!empty($accImproved)) $improvedAreas[] = "Accuracy (+" . number_format($accDiff, 1) . "%)";
+                if (!empty($compImproved)) $improvedAreas[] = "Comprehension (+" . number_format($compDiff, 1) . "%)";
+                $improvedAreasStr = implode(" and ", $improvedAreas);
+
+                $metricsData = [
+                    'outcome' => $resultText,
+                    'student_name' => $student['fname'] ?? ($user['fname'] ?? 'The student'),
+                    'pre_prof' => $hasPre ? $pre['prof'] : 'N/A',
+                    'post_prof' => $hasPost ? $post['prof'] : 'N/A',
+                    'acc_diff' => $hasPre && $hasPost ? $accDiff : 0,
+                    'comp_diff' => $hasPre && $hasPost ? $compDiff : 0,
+                    'wpm_diff' => $hasPre && $hasPost ? $wpmDiff : 0,
+                    'improved_areas' => $improvedAreasStr,
+                    'level_promoted' => !empty($levelPromoted)
+                ];
+
+                $recData = resolve_student_recommendation($pdo, $target_user_id, $p['title'], $metricsData);
+                $rec = $recData['recommendation'];
+                $isCustomRec = $recData['is_custom'];
+                $conditionTag = $recData['condition_tag'] ?? null;
         ?>
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row justify-between md:items-center gap-2">
@@ -303,8 +312,51 @@ if (!function_exists('getProfLevel')) {
                 
                 <!-- Recommendation -->
                 <div class="<?php echo str_replace('border-', 'border-l-4 border-y-0 border-r-0 bg-', $resultBg); ?> bg-opacity-50 rounded-r-lg p-4">
-                    <div class="text-xs font-bold <?php echo $resultColor; ?> uppercase tracking-wider mb-1">Final Recommendation</div>
-                    <p class="text-sm text-slate-700 font-medium"><?php echo $rec; ?></p>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs font-bold <?php echo $resultColor; ?> uppercase tracking-wider">Final Recommendation</span>
+                            <?php if ($isCustomRec): ?>
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200" title="Customized specifically by teacher">
+                                    <i class="fas fa-user-edit text-[10px]"></i> Teacher's Recommendation
+                                </span>
+                            <?php else: ?>
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200" title="Generated by automated condition rule">
+                                    <i class="fas fa-robot text-[10px] text-blue-500"></i> Automated Rule
+                                </span>
+                            <?php endif; ?>
+                            <?php if (!empty($conditionTag)): ?>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-slate-600 border border-slate-200 shadow-xs">
+                                    <i class="fas fa-tag text-[10px] text-slate-400"></i> <?php echo htmlspecialchars($conditionTag); ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
+                        <div class="flex items-center gap-2">
+                            <button type="button" 
+                                onclick='openCustomizeRecModal(<?php echo htmlspecialchars(json_encode([
+                                    "user_id" => (int)$target_user_id,
+                                    "student_name" => $student["fname"] ?? ($user["fname"] ?? "Student"),
+                                    "course_group" => $p["title"],
+                                    "recommendation" => $rec,
+                                    "condition_tag" => $conditionTag ?? "",
+                                    "is_custom" => $isCustomRec
+                                ]), ENT_QUOTES, "UTF-8"); ?>)' 
+                                class="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-300 shadow-sm transition">
+                                <i class="fas fa-edit text-blue-600"></i> <?php echo $isCustomRec ? 'Edit Recommendation' : 'Customize Recommendation'; ?>
+                            </button>
+                            <?php if ($isCustomRec): ?>
+                            <button type="button" 
+                                onclick="revertStudentRec(<?php echo (int)$target_user_id; ?>, <?php echo htmlspecialchars(json_encode($p['title']), ENT_QUOTES, 'UTF-8'); ?>)" 
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-md border border-rose-200 transition" 
+                                title="Revert back to standard automated rule">
+                                <i class="fas fa-rotate-left"></i> Revert
+                            </button>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <p class="text-sm text-slate-700 font-medium whitespace-pre-line leading-relaxed"><?php echo htmlspecialchars($rec); ?></p>
                 </div>
 
             </div>

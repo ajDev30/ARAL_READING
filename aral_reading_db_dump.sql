@@ -224,6 +224,67 @@ INSERT INTO `reading_profiles` VALUES (15,NULL,9,NULL,'2026-10-10 11:15:23'),(16
 UNLOCK TABLES;
 
 --
+-- Table structure for table `recommendation_rules`
+--
+
+DROP TABLE IF EXISTS `recommendation_rules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `recommendation_rules` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `condition_name` varchar(100) NOT NULL,
+  `outcome` varchar(50) NOT NULL,
+  `target_profile` varchar(50) DEFAULT 'Any',
+  `recommendation_template` text NOT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `recommendation_rules`
+--
+
+LOCK TABLES `recommendation_rules` WRITE;
+/*!40000 ALTER TABLE `recommendation_rules` DISABLE KEYS */;
+INSERT INTO `recommendation_rules` VALUES 
+(1,'Profile Level Promotion','Improved','Any','Congratulations /student! Reading profile successfully improved from /pre-test to /post-test level. Keep up the great reading habits!',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(2,'Fluency & Accuracy Growth','Improved','Any','Great progress, /student! Showed notable gains in /improve while maintaining steady reading speed.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(3,'Severe Profile Decline (Frustration)','Declined','Frustration','/student is currently reading at /post-test level. Recommended action: 15 minutes of guided oral reading and phonics practice daily.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(4,'General Profile Decline','Declined','Any','/student transitioned from /pre-test to /post-test. Recommended action: Provide paired reading support and extra vocabulary practice.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(5,'Accuracy & Comprehension Drop','Declined','Any','/student would benefit from focused comprehension questions and gentle reading pace practice to rebuild confidence.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(6,'Partial Progress (Metric Gain)','Partial Progress','Any','/student is currently at /pre-test level, with positive progress in /improve! Continue regular practice to reach the next reading profile.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(7,'Stable / Maintained Profile','Maintained','Any','/student maintained a stable /pre-test reading profile. Regular guided reading sessions will help build even higher fluency.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(8,'Pre-Test Completed (In Progress)','In Progress','Any','/student has completed the Pre-Test. Review the module lessons and proceed to the Post-Test when ready!',1,'2026-10-12 17:03:00','2026-10-12 17:35:05'),
+(9,'Post-Test Only','Post-Test Only','Any','/student completed the Post-Test. Encourage taking the Pre-Test next time to track before-and-after reading growth.',1,'2026-10-12 17:03:00','2026-10-12 17:35:05');
+/*!40000 ALTER TABLE `recommendation_rules` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `student_recommendations`
+--
+
+DROP TABLE IF EXISTS `student_recommendations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `student_recommendations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `course_group` varchar(255) NOT NULL,
+  `condition_tag` varchar(100) DEFAULT NULL,
+  `recommendation_text` text NOT NULL,
+  `teacher_id` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_course` (`user_id`,`course_group`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `settings`
 --
 

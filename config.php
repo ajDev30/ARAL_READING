@@ -180,4 +180,160 @@ if (!function_exists('save_sections_by_grade')) {
         return $clean;
     }
 }
+
+if (!function_exists('get_recommendation_rules')) {
+    function get_recommendation_rules($pdo) {
+        if (!$pdo) return [];
+        try {
+            $stmt = $pdo->query("SELECT * FROM recommendation_rules WHERE is_active = 1 ORDER BY id ASC");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+}
+
+if (!function_exists('save_student_custom_recommendation')) {
+    function save_student_custom_recommendation($pdo, $user_id, $course_group, $text, $tag = null, $teacher_id = null) {
+        if (!$pdo || empty($user_id) || empty($course_group)) return false;
+        $stmt = $pdo->prepare("
+            INSERT INTO student_recommendations (user_id, course_group, condition_tag, recommendation_text, teacher_id)
+            VALUES (:uid, :grp, :tag, :rec, :tid)
+            ON DUPLICATE KEY UPDATE 
+                condition_tag = VALUES(condition_tag),
+                recommendation_text = VALUES(recommendation_text),
+                teacher_id = VALUES(teacher_id),
+                updated_at = CURRENT_TIMESTAMP
+        ");
+        return $stmt->execute([
+            'uid' => $user_id,
+            'grp' => $course_group,
+            'tag' => $tag,
+            'rec' => $text,
+            'tid' => $teacher_id
+        ]);
+    }
+}
+
+if (!function_exists('delete_student_custom_recommendation')) {
+    function delete_student_custom_recommendation($pdo, $user_id, $course_group) {
+        if (!$pdo || empty($user_id) || empty($course_group)) return false;
+        $stmt = $pdo->prepare("DELETE FROM student_recommendations WHERE user_id = ? AND course_group = ?");
+        return $stmt->execute([$user_id, $course_group]);
+    }
+}
+
+if (!function_exists('resolve_student_recommendation')) {
+    function resolve_student_recommendation($pdo, $user_id, $course_group, $metrics) {
+        if (!$pdo) {
+            return [
+                'is_custom' => false,
+                'recommendation' => 'Assessment comparison recorded.',
+                'condition_tag' => null
+            ];
+        }
+
+        $outcome = $metrics['outcome'] ?? 'Pending';
+        $postProf = $metrics['post_prof'] ?? '';
+        $preProf = $metrics['pre_prof'] ?? '';
+        $improvedAreas = $metrics['improved_areas'] ?? '';
+        $studentName = $metrics['student_name'] ?? 'The student';
+
+        $accDiffFormatted = isset($metrics['acc_diff']) ? (($metrics['acc_diff'] > 0 ? '+' : '') . number_format($metrics['acc_diff'], 1) . '%') : '';
+        $compDiffFormatted = isset($metrics['comp_diff']) ? (($metrics['comp_diff'] > 0 ? '+' : '') . number_format($metrics['comp_diff'], 1) . '%') : '';
+        $wpmDiffFormatted = isset($metrics['wpm_diff']) ? (round($metrics['wpm_diff']) . ' WPM') : '';
+
+        // Template replacements mapping (supports both new user-friendly slash tokens and legacy curly tags)
+        $replacements = [
+            // User-friendly slash shortcuts
+            '/student' => htmlspecialchars($studentName),
+            '/pre-test' => htmlspecialchars($preProf),
+            '/post-test' => htmlspecialchars($postProf),
+            '/diff_accuracy' => $accDiffFormatted,
+            '/diff_comprehension' => $compDiffFormatted,
+            '/improve' => htmlspecialchars($improvedAreas),
+            // Legacy / backward-compatible placeholders
+            '{student_name}' => htmlspecialchars($studentName),
+            '{pre_prof}' => htmlspecialchars($preProf),
+            '{post_prof}' => htmlspecialchars($postProf),
+            '{improved_areas}' => htmlspecialchars($improvedAreas),
+            '{acc_diff}' => $accDiffFormatted,
+            '{comp_diff}' => $compDiffFormatted,
+            '{wpm_diff}' => $wpmDiffFormatted
+        ];
+
+        // 1. Check if a personalized custom recommendation exists for this user and course group
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM student_recommendations WHERE user_id = ? AND course_group = ?");
+            $stmt->execute([$user_id, $course_group]);
+            $custom = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($custom && !empty(trim($custom['recommendation_text']))) {
+                $customText = str_replace(array_keys($replacements), array_values($replacements), trim($custom['recommendation_text']));
+                return [
+                    'is_custom' => true,
+                    'recommendation' => $customText,
+                    'condition_tag' => $custom['condition_tag'] ?? 'Teacher Note',
+                    'teacher_id' => $custom['teacher_id'],
+                    'updated_at' => $custom['updated_at']
+                ];
+            }
+        } catch (Exception $e) {
+            // Table might not exist yet, continue to rule evaluation
+        }
+
+        // 2. Evaluate dynamic conditional rules from recommendation_rules
+        $rules = get_recommendation_rules($pdo);
+        $matchedTemplate = null;
+        $matchedTag = null;
+
+        // First attempt: exact match on outcome AND target_profile
+        foreach ($rules as $r) {
+            if (strcasecmp($r['outcome'], $outcome) === 0 && !empty($postProf) && strcasecmp($r['target_profile'], $postProf) === 0) {
+                $matchedTemplate = $r['recommendation_template'];
+                $matchedTag = $r['condition_name'];
+                break;
+            }
+        }
+
+        // Second attempt: match outcome with target_profile = 'Any'
+        if (!$matchedTemplate) {
+            foreach ($rules as $r) {
+                if (strcasecmp($r['outcome'], $outcome) === 0 && strcasecmp($r['target_profile'], 'Any') === 0) {
+                    // Check if rule requires profile promotion vs metric improvement
+                    if ($outcome === 'Improved' && isset($metrics['level_promoted']) && !$metrics['level_promoted'] && stripos($r['condition_name'], 'Promotion') !== false) {
+                        continue;
+                    }
+                    $matchedTemplate = $r['recommendation_template'];
+                    $matchedTag = $r['condition_name'];
+                    break;
+                }
+            }
+        }
+
+        // 3. Fallback standard message if no rules matched
+        if (!$matchedTemplate) {
+            if ($outcome === 'Improved') {
+                $matchedTemplate = "Congratulations /student! Reading profile showed clear improvement. Keep up the great reading habits!";
+            } elseif ($outcome === 'Declined') {
+                $matchedTemplate = "/student is currently at /post-test level. Recommended action: 15 minutes of guided oral reading practice daily.";
+            } elseif ($outcome === 'Partial Progress') {
+                $matchedTemplate = "/student showed positive progress in /improve! Continue regular practice to reach the next reading profile.";
+            } elseif ($outcome === 'In Progress') {
+                $matchedTemplate = "/student has completed the Pre-Test. Review the module lessons and proceed to the Post-Test when ready!";
+            } elseif ($outcome === 'Post-Test Only') {
+                $matchedTemplate = "/student completed the Post-Test. Encourage taking the Pre-Test next time to track before-and-after reading growth.";
+            } else {
+                $matchedTemplate = "/student maintained a stable /pre-test reading profile. Regular guided reading sessions will help build even higher fluency.";
+            }
+        }
+
+        $finalText = str_replace(array_keys($replacements), array_values($replacements), $matchedTemplate);
+
+        return [
+            'is_custom' => false,
+            'recommendation' => $finalText,
+            'condition_tag' => $matchedTag
+        ];
+    }
+}
 ?>

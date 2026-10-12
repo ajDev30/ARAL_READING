@@ -78,7 +78,7 @@ $phase = $test['test_type'] === 'Pre-Test' ? 'Course-Pre-Test' : 'Course-Post-Te
 <div class="course-shell">
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
         <h3><?php echo htmlspecialchars($test['title']); ?> <span class="badge badge-info"><?php echo $test['test_type']; ?></span></h3>
-        <a href="student_course.php" class="btn btn-outline-secondary">Back to Course</a>
+        <a href="student_course.php" class="btn btn-outline-secondary">Back to Materials</a>
     </div>
 
         <main class="shell" style="all: unset; display: block;">

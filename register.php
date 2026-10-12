@@ -5,9 +5,9 @@ require_once 'config.php';
 $error = '';
 $success = '';
 
-$stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'available_sections'");
-$row = $stmt->fetch();
-$available_sections = $row ? array_filter(array_map('trim', explode(',', $row['setting_value']))) : [];
+$sections_by_grade = get_sections_by_grade($pdo);
+$posted_grade = $_POST['grade_level'] ?? '';
+$posted_section = $_POST['section'] ?? '';
 
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -28,6 +28,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Validation
     if ($age <= 0) {
         $error = "Age must be a positive number.";
+    } elseif (!preg_match('/^[0-9]{12}$/', $lrn)) {
+        $error = "LRN must be exactly 12 digits.";
     } elseif ($pass !== $repass) {
         $error = "Passwords do not match!";
     } else {
@@ -57,7 +59,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             ]);
 
             if ($result) {
-                $success = "Registration successful! You can now log in.";
+                header("Location: index.php?registered=1");
+                exit;
             } else {
                 $error = "Registration failed. Please try again.";
             }
@@ -141,7 +144,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">LRN (Learner Reference Number)</label>
-                    <input type="text" name="lrn" required 
+                    <input type="text" name="lrn" required maxlength="12" minlength="12" pattern="[0-9]{12}" inputmode="numeric"
+                        title="LRN must be exactly 12 digits"
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 12)"
+                        placeholder="12-digit LRN (e.g. 123456789012)"
                         class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition">
                 </div>
 
@@ -153,30 +159,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Grade Level</label>
-                    <select name="grade_level" required 
+                    <select name="grade_level" id="grade_level" required onchange="updateSectionDropdown()"
                         class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition">
-                        <option value="" disabled selected>Select Grade</option>
-                        <option value="Grade 7">Grade 7</option>
-                        <option value="Grade 8">Grade 8</option>
-                        <option value="Grade 9">Grade 9</option>
-                        <option value="Grade 10">Grade 10</option>
+                        <option value="" disabled <?php echo empty($posted_grade) ? 'selected' : ''; ?>>Select Grade</option>
+                        <option value="Grade 7" <?php echo $posted_grade === 'Grade 7' ? 'selected' : ''; ?>>Grade 7</option>
+                        <option value="Grade 8" <?php echo $posted_grade === 'Grade 8' ? 'selected' : ''; ?>>Grade 8</option>
+                        <option value="Grade 9" <?php echo $posted_grade === 'Grade 9' ? 'selected' : ''; ?>>Grade 9</option>
+                        <option value="Grade 10" <?php echo $posted_grade === 'Grade 10' ? 'selected' : ''; ?>>Grade 10</option>
                     </select>
                 </div>
 
                 <!-- Row 4 -->
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Section</label>
-                    <?php if (empty($available_sections)): ?>
-                        <input type="text" name="section" required placeholder="Enter Section"
-                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition">
-                    <?php else: ?>
-                        <select name="section" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition">
-                            <option value="">Select Section</option>
-                            <?php foreach ($available_sections as $sec): ?>
-                                <option value="<?php echo htmlspecialchars($sec); ?>"><?php echo htmlspecialchars($sec); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    <?php endif; ?>
+                    <select name="section" id="section" required 
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed">
+                        <option value="">Select Grade Level First</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
@@ -221,12 +220,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
     <script>
+        const sectionsByGrade = <?php echo json_encode($sections_by_grade, JSON_UNESCAPED_UNICODE); ?>;
+        const initialSelectedSection = <?php echo json_encode($posted_section); ?>;
+
+        function updateSectionDropdown() {
+            const gradeSelect = document.getElementById('grade_level');
+            const secSelect = document.getElementById('section');
+            const selectedGrade = gradeSelect.value;
+
+            secSelect.innerHTML = '';
+
+            if (!selectedGrade || !sectionsByGrade[selectedGrade]) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Select Grade Level First';
+                secSelect.appendChild(opt);
+                secSelect.disabled = true;
+                return;
+            }
+
+            const sections = sectionsByGrade[selectedGrade] || [];
+            secSelect.disabled = false;
+
+            if (sections.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No sections available for ' + selectedGrade;
+                secSelect.appendChild(opt);
+                return;
+            }
+
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = 'Select Section (' + selectedGrade + ')';
+            secSelect.appendChild(defaultOpt);
+
+            sections.forEach(function(sec) {
+                const opt = document.createElement('option');
+                opt.value = sec;
+                opt.textContent = sec;
+                if (initialSelectedSection && initialSelectedSection === sec) {
+                    opt.selected = true;
+                }
+                secSelect.appendChild(opt);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('grade_level').value) {
+                updateSectionDropdown();
+            } else {
+                document.getElementById('section').disabled = true;
+            }
+        });
+
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('appSidebar');
             const overlay = document.getElementById('sidebarOverlay');
             if(sidebar) sidebar.classList.toggle('-translate-x-full');
             if(overlay) overlay.classList.toggle('hidden');
-        }
+        };
     </script>
 </body>
 </html>

@@ -67,9 +67,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <!-- Logo & Header -->
         <div class="text-center mb-8">
             <img src="aral_logoindex.png" alt="ARAL Reading Program Logo" class="mx-auto h-24 mb-4 object-contain">
-            <h2 class="text-2xl font-bold text-slate-800">Welcome Back</h2>
+            <h2 class="text-2xl font-bold text-slate-800">Welcome to ARAL PROGRAM</h2>
             <p class="text-sm text-slate-500 mt-1">Sign in to the ARAL READING Program</p>
         </div>
+
+        <!-- Success Message -->
+        <?php if(isset($_GET['registered']) && $_GET['registered'] === '1'): ?>
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-6 text-sm flex items-start">
+            <i class="fas fa-check-circle mt-0.5 mr-2"></i>
+            <span>Registration successful! You may now sign in with your credentials.</span>
+        </div>
+        <?php endif; ?>
 
         <!-- Error Message -->
         <?php if($error): ?>

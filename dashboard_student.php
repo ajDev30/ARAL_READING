@@ -310,7 +310,7 @@ $fullName = htmlspecialchars($user['fname'] . ' ' . $mi . ' ' . $user['lname']);
                             <p class="text-blue-100">Access your personalized course materials, reading practice, and activities.</p>
                         </div>
                         <a href="student_course.php" class="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-50 transition shadow">
-                            Go to Course <i class="fas fa-arrow-right ml-2"></i>
+                            Go to Materials <i class="fas fa-arrow-right ml-2"></i>
                         </a>
                     </div>
                 <?php endif; ?>

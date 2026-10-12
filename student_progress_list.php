@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 
 // Fetch all students who have at least one reading attempt
 $stmt = $pdo->query("
-    SELECT u.id, u.fname, u.lname, u.grade_level, u.section,
+    SELECT u.id, u.fname, u.mname, u.lname, u.grade_level, u.section,
            COUNT(ra.id) as total_tests,
            MAX(ra.created_at) as last_activity
     FROM users u
@@ -18,7 +18,50 @@ $stmt = $pdo->query("
     GROUP BY u.id
     ORDER BY last_activity DESC
 ");
-$students = $stmt->fetchAll();
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch all Course-Pre-Test and Course-Post-Test attempts
+$stmtAtt = $pdo->query("
+    SELECT user_id, phase, accuracy_score, comprehension_score, oral_reading_profile, reading_speed, created_at
+    FROM reading_attempts
+    WHERE phase IN ('Course-Pre-Test', 'Course-Post-Test')
+    ORDER BY created_at DESC
+");
+$allAttempts = $stmtAtt->fetchAll(PDO::FETCH_ASSOC);
+
+$studentAttempts = [];
+foreach ($allAttempts as $att) {
+    $uid = $att['user_id'];
+    if (!isset($studentAttempts[$uid])) {
+        $studentAttempts[$uid] = ['pre' => null, 'post' => null];
+    }
+    if ($att['phase'] === 'Course-Pre-Test' && $studentAttempts[$uid]['pre'] === null) {
+        $studentAttempts[$uid]['pre'] = $att;
+    } elseif ($att['phase'] === 'Course-Post-Test' && $studentAttempts[$uid]['post'] === null) {
+        $studentAttempts[$uid]['post'] = $att;
+    }
+}
+
+function computeProgressRemarks($pre, $post) {
+    if (!$pre && !$post) return ['text' => 'No Data', 'class' => 'bg-slate-100 text-slate-500'];
+    if ($pre && !$post) return ['text' => 'In Progress', 'class' => 'bg-blue-50 text-blue-600 border border-blue-200 font-semibold'];
+    if (!$pre && $post) return ['text' => 'Post-Test Only', 'class' => 'bg-slate-100 text-slate-600 font-semibold'];
+    
+    $accDiff = floatval($post['accuracy_score']) - floatval($pre['accuracy_score']);
+    $compDiff = floatval($post['comprehension_score']) - floatval($pre['comprehension_score']);
+    
+    if ($accDiff > 0 || $compDiff > 0) {
+        if ($accDiff > 0 && $compDiff > 0) {
+            return ['text' => 'Improved', 'class' => 'bg-emerald-100 text-emerald-800 font-bold'];
+        } else {
+            return ['text' => 'Partial Progress', 'class' => 'bg-blue-100 text-blue-800 font-semibold'];
+        }
+    } elseif ($accDiff < 0 && $compDiff < 0) {
+        return ['text' => 'Declined', 'class' => 'bg-rose-100 text-rose-800 font-bold'];
+    } else {
+        return ['text' => 'Maintained', 'class' => 'bg-amber-100 text-amber-800 font-semibold'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -124,30 +167,81 @@ $students = $stmt->fetchAll();
                                     <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
                                         <th class="py-3 px-4">Student Name</th>
                                         <th class="py-3 px-4">Grade & Section</th>
-                                        <th class="py-3 px-4">Total Tests Taken</th>
+                                        <th class="py-3 px-4">Pre-Test Result</th>
+                                        <th class="py-3 px-4">Post-Test Result</th>
+                                        <th class="py-3 px-4">Remarks</th>
                                         <th class="py-3 px-4">Last Activity</th>
                                         <th class="py-3 px-4 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    <?php foreach($students as $s): ?>
+                                    <?php 
+                                    foreach($students as $s): 
+                                        $uid = $s['id'];
+                                        $pre = $studentAttempts[$uid]['pre'] ?? null;
+                                        $post = $studentAttempts[$uid]['post'] ?? null;
+                                        $remarks = computeProgressRemarks($pre, $post);
+                                        $clean_sec = preg_replace('/^Grade\s+\d+\s+/i', '', $s['section']);
+                                        $mi = !empty($s['mname']) ? strtoupper(substr($s['mname'], 0, 1)) . '.' : '';
+                                        $name = htmlspecialchars($s['fname'] . ' ' . $mi . ' ' . $s['lname']);
+                                    ?>
                                     <tr class="hover:bg-slate-50 transition">
                                         <td class="py-3 px-4 font-medium text-slate-800">
                                             <div class="flex items-center">
-                                                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3">
+                                                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3 text-xs shrink-0">
                                                     <?php echo strtoupper(substr($s['fname'], 0, 1)); ?>
                                                 </div>
-                                                <?php echo htmlspecialchars($s['fname'] . ' ' . $s['lname']); ?>
+                                                <span><?php echo $name; ?></span>
                                             </div>
                                         </td>
-                                        <td class="py-3 px-4 text-slate-600"><?php echo htmlspecialchars($s['grade_level'] . ' - ' . preg_replace('/^Grade\s+\d+\s+/i', '', $s['section'])); ?></td>
+                                        <td class="py-3 px-4 text-slate-600 text-xs font-medium"><?php echo htmlspecialchars($s['grade_level'] . ' - ' . $clean_sec); ?></td>
+                                        
+                                        <!-- Pre-Test Result -->
                                         <td class="py-3 px-4">
-                                            <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold"><?php echo $s['total_tests']; ?> Tests</span>
+                                            <?php if ($pre): ?>
+                                                <div class="text-xs">
+                                                    <span class="font-bold text-slate-800"><?php echo number_format($pre['accuracy_score'], 1); ?>%</span> <span class="text-[10px] text-slate-500">Acc</span>
+                                                    <span class="text-slate-300 mx-1">|</span>
+                                                    <span class="font-bold text-blue-600"><?php echo number_format($pre['comprehension_score'], 1); ?>%</span> <span class="text-[10px] text-slate-500">Comp</span>
+                                                    <div class="text-[10px] font-semibold text-slate-500 mt-0.5"><?php echo htmlspecialchars($pre['oral_reading_profile'] ?? ''); ?></div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-xs text-slate-400 font-medium">Not Taken</span>
+                                            <?php endif; ?>
                                         </td>
-                                        <td class="py-3 px-4 text-slate-500 text-sm"><?php echo date('M d, Y h:i A', strtotime($s['last_activity'])); ?></td>
-                                        <td class="py-3 px-4 text-right">
-                                            <a href="student_submissions.php?user_id=<?php echo $s['id']; ?>" class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-medium transition shadow-sm">
-                                                <i class="fas fa-chart-line mr-1.5"></i> View Progress
+
+                                        <!-- Post-Test Result -->
+                                        <td class="py-3 px-4">
+                                            <?php if ($post): ?>
+                                                <div class="text-xs">
+                                                    <span class="font-bold text-slate-800"><?php echo number_format($post['accuracy_score'], 1); ?>%</span> <span class="text-[10px] text-slate-500">Acc</span>
+                                                    <span class="text-slate-300 mx-1">|</span>
+                                                    <span class="font-bold text-blue-600"><?php echo number_format($post['comprehension_score'], 1); ?>%</span> <span class="text-[10px] text-slate-500">Comp</span>
+                                                    <?php 
+                                                    if ($pre) {
+                                                        $diffAcc = $post['accuracy_score'] - $pre['accuracy_score'];
+                                                        $col = $diffAcc > 0 ? 'text-emerald-600' : ($diffAcc < 0 ? 'text-rose-600' : 'text-slate-400');
+                                                        $sign = $diffAcc > 0 ? '+' : '';
+                                                        echo '<div class="text-[10px] font-bold ' . $col . ' mt-0.5">' . $sign . number_format($diffAcc, 1) . '% Acc</div>';
+                                                    }
+                                                    ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-xs text-slate-400 font-medium">Not Taken</span>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <!-- Remarks -->
+                                        <td class="py-3 px-4">
+                                            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs <?php echo $remarks['class']; ?>">
+                                                <?php echo $remarks['text']; ?>
+                                            </span>
+                                        </td>
+
+                                        <td class="py-3 px-4 text-slate-500 text-xs"><?php echo date('M d, Y h:i A', strtotime($s['last_activity'])); ?></td>
+                                        <td class="py-3 px-4 text-right whitespace-nowrap">
+                                            <a href="teacher_student_grades.php?student_id=<?php echo $s['id']; ?>" class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-medium transition shadow-sm">
+                                                <i class="fas fa-chart-line mr-1.5"></i> Progress Details
                                             </a>
                                         </td>
                                     </tr>

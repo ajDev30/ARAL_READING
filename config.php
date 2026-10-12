@@ -63,4 +63,121 @@ if (!function_exists('get_student_reading_level')) {
         return 'Instructional';
     }
 }
+
+if (!function_exists('get_sections_by_grade')) {
+    function get_sections_by_grade($pdo) {
+        $default_sections = [
+            'Grade 7' => ['Rizal', 'Luna', 'Bonifacio', 'Del Pilar'],
+            'Grade 8' => ['Sapphire', 'Ruby', 'Emerald', 'Bloodstone'],
+            'Grade 9' => ['Phoenix', 'Falcon', 'Lionheart', 'Raven'],
+            'Grade 10' => ['Crimson', 'Amber', 'Coral', 'Ivory']
+        ];
+
+        if (!$pdo) {
+            return $default_sections;
+        }
+
+        try {
+            $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'available_sections'");
+            $stmt->execute();
+            $row = $stmt->fetch();
+            if ($row && !empty(trim($row['setting_value'] ?? ''))) {
+                $raw = trim($row['setting_value']);
+                $decoded = json_decode($raw, true);
+
+                if (is_array($decoded)) {
+                    $result = [];
+                    foreach (['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'] as $g) {
+                        $short = preg_replace('/[^0-9]/', '', $g);
+                        $raw_list = $decoded[$g] ?? $decoded[$short] ?? [];
+                        if (is_array($raw_list)) {
+                            $clean_list = [];
+                            foreach ($raw_list as $item) {
+                                $t = trim((string)$item);
+                                if ($t !== '' && !in_array($t, $clean_list)) {
+                                    $clean_list[] = $t;
+                                }
+                            }
+                            $result[$g] = $clean_list;
+                        } else {
+                            $result[$g] = [];
+                        }
+                    }
+                    return $result;
+                }
+
+                // Legacy comma/newline separated fallback
+                $lines = preg_split('/[\r\n,]+/', $raw);
+                $result = [
+                    'Grade 7' => [],
+                    'Grade 8' => [],
+                    'Grade 9' => [],
+                    'Grade 10' => []
+                ];
+                foreach ($lines as $item) {
+                    $item = trim($item);
+                    if ($item === '') continue;
+
+                    if (preg_match('/^Grade\s*7\s*[:-]?\s*(.+)$/i', $item, $m)) {
+                        $clean = trim($m[1]);
+                        if ($clean !== '' && !in_array($clean, $result['Grade 7'])) $result['Grade 7'][] = $clean;
+                    } elseif (preg_match('/^Grade\s*8\s*[:-]?\s*(.+)$/i', $item, $m)) {
+                        $clean = trim($m[1]);
+                        if ($clean !== '' && !in_array($clean, $result['Grade 8'])) $result['Grade 8'][] = $clean;
+                    } elseif (preg_match('/^Grade\s*9\s*[:-]?\s*(.+)$/i', $item, $m)) {
+                        $clean = trim($m[1]);
+                        if ($clean !== '' && !in_array($clean, $result['Grade 9'])) $result['Grade 9'][] = $clean;
+                    } elseif (preg_match('/^Grade\s*10\s*[:-]?\s*(.+)$/i', $item, $m)) {
+                        $clean = trim($m[1]);
+                        if ($clean !== '' && !in_array($clean, $result['Grade 10'])) $result['Grade 10'][] = $clean;
+                    } else {
+                        // Unprefixed legacy section, assign to Grade 7
+                        if (!in_array($item, $result['Grade 7'])) {
+                            $result['Grade 7'][] = $item;
+                        }
+                    }
+                }
+
+                // If any grade ended up completely empty, supply default sections
+                foreach (['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'] as $g) {
+                    if (empty($result[$g]) && !empty($default_sections[$g])) {
+                        $result[$g] = $default_sections[$g];
+                    }
+                }
+
+                return $result;
+            }
+        } catch (Exception $e) {
+            // Fallback on database error
+        }
+
+        return $default_sections;
+    }
+}
+
+if (!function_exists('save_sections_by_grade')) {
+    function save_sections_by_grade($pdo, $sections_by_grade) {
+        $clean = [];
+        foreach (['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'] as $g) {
+            $short = preg_replace('/[^0-9]/', '', $g);
+            $raw_list = $sections_by_grade[$g] ?? $sections_by_grade[$short] ?? [];
+            if (!is_array($raw_list)) {
+                $raw_list = [];
+            }
+            $clean_list = [];
+            foreach ($raw_list as $item) {
+                $t = trim((string)$item);
+                if ($t !== '' && !in_array($t, $clean_list)) {
+                    $clean_list[] = $t;
+                }
+            }
+            $clean[$g] = $clean_list;
+        }
+
+        $json = json_encode($clean, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('available_sections', :v) ON DUPLICATE KEY UPDATE setting_value = :v2");
+        $stmt->execute(['v' => $json, 'v2' => $json]);
+        return $clean;
+    }
+}
 ?>

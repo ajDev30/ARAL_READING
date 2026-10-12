@@ -63,6 +63,21 @@ $pct_ind = $total_students > 0 ? round(($independent/$total_students)*100, 1) : 
 $pct_ins = $total_students > 0 ? round(($instructional/$total_students)*100, 1) : 0;
 $pct_fru = $total_students > 0 ? round(($frustration/$total_students)*100, 1) : 0;
 $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0;
+
+$sections = [];
+$grade_levels = [];
+foreach($students as $st) {
+    $sec = preg_replace('/^Grade\s+\d+\s+/i', '', trim($st['section'] ?? ''));
+    if (!empty($sec) && !in_array($sec, $sections)) {
+        $sections[] = $sec;
+    }
+    $gl = trim($st['grade_level'] ?? '');
+    if (!empty($gl) && !in_array($gl, $grade_levels)) {
+        $grade_levels[] = $gl;
+    }
+}
+sort($sections);
+sort($grade_levels);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -210,10 +225,32 @@ $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0
 
             <!-- Masterlist -->
             <div class="card p-6 h-auto flex flex-col mb-10">
-                <div class="flex flex-col md:flex-row md:justify-between md:items-center border-b pb-2 mb-4 gap-2">
-                    <h3 class="font-bold text-slate-800 text-sm">Master Student List</h3>
-                    <div class="flex items-center gap-2">
-                        <select id="masterlistProfileFilter" class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center border-b pb-3 mb-4 gap-3">
+                    <div class="flex items-center gap-3">
+                        <h3 class="font-bold text-slate-800 text-base">Master Student List</h3>
+                        <button onclick="openReportModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                            <i class="fas fa-file-alt"></i> Generate Report (.txt)
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Grade Level Filter -->
+                        <select id="masterlistGradeFilter" onchange="applyMasterlistFilters()" class="border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500 bg-white font-medium">
+                            <option value="">All Grades</option>
+                            <?php foreach($grade_levels as $gl): ?>
+                                <option value="<?php echo htmlspecialchars($gl); ?>"><?php echo htmlspecialchars($gl); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <!-- Section Filter -->
+                        <select id="masterlistSectionFilter" onchange="applyMasterlistFilters()" class="border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500 bg-white font-medium">
+                            <option value="">All Sections</option>
+                            <?php foreach($sections as $sec): ?>
+                                <option value="<?php echo htmlspecialchars($sec); ?>"><?php echo htmlspecialchars($sec); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <!-- Profile Filter -->
+                        <select id="masterlistProfileFilter" onchange="applyMasterlistFilters()" class="border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500 bg-white font-medium">
                             <option value="">All Profiles</option>
                             <option value="Independent">Independent</option>
                             <option value="Instructional">Instructional</option>
@@ -221,17 +258,21 @@ $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0
                             <option value="Non-Reader">Non-Reader</option>
                             <option value="Pending">Pending</option>
                         </select>
-                        <input type="text" id="masterlistSearch" placeholder="Search students..." class="border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
+
+                        <!-- Search -->
+                        <input type="text" id="masterlistSearch" onkeyup="applyMasterlistFilters()" placeholder="Search students..." class="border border-slate-300 rounded px-3 py-1 text-xs focus:outline-none focus:border-blue-500 w-44">
                     </div>
                 </div>
+
                 <div class="overflow-x-auto">
                     <table id="masterlistTable" class="w-full text-sm text-left border-collapse">
                         <thead class="text-xs text-slate-500 bg-slate-50">
                             <tr>
-                                <th class="py-2 px-3">Student Name</th>
-                                <th class="py-2 px-3">LRN</th>
-                                <th class="py-2 px-3">Grade & Sec</th>
-                                <th class="py-2 px-3">Oral Reading Profile</th>
+                                <th class="py-2.5 px-3">Student Name</th>
+                                <th class="py-2.5 px-3">LRN</th>
+                                <th class="py-2.5 px-3">Grade & Sec</th>
+                                <th class="py-2.5 px-3">Oral Reading Profile</th>
+                                <th class="py-2.5 px-3">Status Remarks</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -246,14 +287,26 @@ $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0
                                     if($lvl=='Instructional') $lc='bg-amber-100 text-amber-800';
                                     if($lvl=='Frustration') $lc='bg-rose-100 text-rose-800';
                                     if($lvl=='Non-Reader') $lc='bg-slate-700 text-white';
+
+                                    $clean_sec = preg_replace('/^Grade\s+\d+\s+/i', '', $s['section']);
+
+                                    $remarks = 'Awaiting Assessment / GST';
+                                    if ($lvl === 'Independent') $remarks = 'Mastery / Grade-Ready';
+                                    elseif ($lvl === 'Instructional') $remarks = 'Recommended for Guided Reading Practice';
+                                    elseif ($lvl === 'Frustration') $remarks = 'Requires Targeted Reading Support';
+                                    elseif ($lvl === 'Non-Reader') $remarks = 'Urgent: Individual Reading Intervention';
                             ?>
-                            <tr class="hover:bg-slate-50">
-                                <td class="py-2 px-3 font-medium text-slate-800"><?php echo $name; ?></td>
-                                <td class="py-2 px-3 text-slate-500"><?php echo htmlspecialchars($s['lrn']); ?></td>
-                                <td class="py-2 px-3 text-slate-500"><?php echo htmlspecialchars($s['grade_level'] . ' - ' . preg_replace('/^Grade\s+\d+\s+/i', '', $s['section'])); ?></td>
-                                <td class="py-2 px-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium <?php echo $lc; ?>"><?php echo $lvl; ?></span></td>
+                            <tr class="hover:bg-slate-50 transition"
+                                data-grade="<?php echo htmlspecialchars($s['grade_level']); ?>" 
+                                data-section="<?php echo htmlspecialchars($clean_sec); ?>" 
+                                data-profile="<?php echo htmlspecialchars($lvl); ?>">
+                                <td class="py-2.5 px-3 font-medium text-slate-800"><?php echo $name; ?></td>
+                                <td class="py-2.5 px-3 text-slate-500 font-mono text-xs"><?php echo htmlspecialchars($s['lrn']); ?></td>
+                                <td class="py-2.5 px-3 text-slate-600"><?php echo htmlspecialchars($s['grade_level'] . ' - ' . $clean_sec); ?></td>
+                                <td class="py-2.5 px-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-semibold <?php echo $lc; ?>"><?php echo $lvl; ?></span></td>
+                                <td class="py-2.5 px-3 text-slate-600 text-xs font-medium"><?php echo htmlspecialchars($remarks); ?></td>
                             </tr>
-                            <?php endforeach; } else { echo "<tr><td colspan='4' class='text-center py-4'>No students found.</td></tr>"; } ?>
+                            <?php endforeach; } else { echo "<tr><td colspan='5' class='text-center py-4 text-slate-500'>No students found.</td></tr>"; } ?>
                         </tbody>
                     </table>
                 </div>
@@ -261,11 +314,130 @@ $pct_non = $total_students > 0 ? round(($non_reader/$total_students)*100, 1) : 0
         </main>
     </div>
 
-    <!-- Custom Table Filter -->
+    <!-- Generate Report Modal -->
+    <div id="reportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center">
+                    <i class="fas fa-file-download text-blue-600 mr-2"></i> Generate Report (.txt)
+                </h3>
+                <button type="button" onclick="closeReportModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Export a formatted text summary and student roster based on Phil-IRI assessment data.</p>
+            
+            <form method="GET" action="export_teacher_report.php" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Year / Grade Level</label>
+                    <select name="grade" id="reportGrade" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500">
+                        <option value="">All Year Levels</option>
+                        <?php foreach($grade_levels as $gl): ?>
+                            <option value="<?php echo htmlspecialchars($gl); ?>"><?php echo htmlspecialchars($gl); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Section</label>
+                    <select name="section" id="reportSection" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500">
+                        <option value="">All Sections</option>
+                        <?php foreach($sections as $sec): ?>
+                            <option value="<?php echo htmlspecialchars($sec); ?>"><?php echo htmlspecialchars($sec); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Status / Reading Profile</label>
+                    <select name="status" id="reportStatus" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500">
+                        <option value="">All Statuses / Profiles</option>
+                        <option value="Independent">Independent</option>
+                        <option value="Instructional">Instructional</option>
+                        <option value="Frustration">Frustration</option>
+                        <option value="Non-Reader">Non-Reader</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+                
+                <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeReportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">Cancel</button>
+                    <button type="submit" onclick="setTimeout(closeReportModal, 500)" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition shadow-sm flex items-center">
+                        <i class="fas fa-download mr-1.5"></i> Download .txt Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Table Filter & Modal Logic -->
     <script src="v536/public/table_filter.js"></script>
     <script>
+        function openReportModal() {
+            document.getElementById('reportModal').classList.remove('hidden');
+        }
+        function closeReportModal() {
+            document.getElementById('reportModal').classList.add('hidden');
+        }
+
+        function applyMasterlistFilters() {
+            const q = (document.getElementById('masterlistSearch')?.value || '').toLowerCase();
+            const grade = document.getElementById('masterlistGradeFilter')?.value || '';
+            const sec = document.getElementById('masterlistSectionFilter')?.value || '';
+            const prof = document.getElementById('masterlistProfileFilter')?.value || '';
+            
+            const rows = document.querySelectorAll('#masterlistTable tbody tr');
+            rows.forEach(row => {
+                if (row.cells.length <= 1) return;
+                const rowGrade = row.getAttribute('data-grade') || '';
+                const rowSec = row.getAttribute('data-section') || '';
+                const rowProf = row.getAttribute('data-profile') || '';
+                const rowText = row.innerText.toLowerCase();
+                
+                const matchQ = !q || rowText.includes(q);
+                const matchGrade = !grade || rowGrade.toLowerCase() === grade.toLowerCase();
+                const matchSec = !sec || rowSec.toLowerCase() === sec.toLowerCase();
+                const matchProf = !prof || rowProf.toLowerCase() === prof.toLowerCase();
+                
+                row.style.display = (matchQ && matchGrade && matchSec && matchProf) ? '' : 'none';
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            initTailwindTable('masterlistTable', 'masterlistSearch', 'masterlistProfileFilter', 3);
+            // Initialize header sorting for columns
+            const headers = document.querySelectorAll('#masterlistTable thead th');
+            headers.forEach((header, index) => {
+                header.style.cursor = 'pointer';
+                header.innerHTML += ' <i class="fas fa-sort text-slate-300 ml-1 text-[10px]"></i>';
+                let asc = true;
+                header.addEventListener('click', () => {
+                    const tbody = document.querySelector('#masterlistTable tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    
+                    headers.forEach(h => {
+                        const icon = h.querySelector('i.fa-sort, i.fa-sort-up, i.fa-sort-down');
+                        if(icon) { icon.className = 'fas fa-sort text-slate-300 ml-1 text-[10px]'; }
+                    });
+                    
+                    const currentIcon = header.querySelector('i');
+                    if (currentIcon) {
+                        currentIcon.className = asc ? 'fas fa-sort-up text-blue-500 ml-1 text-[10px]' : 'fas fa-sort-down text-blue-500 ml-1 text-[10px]';
+                    }
+
+                    rows.sort((a, b) => {
+                        if (a.cells.length <= 1 || b.cells.length <= 1) return 0;
+                        const aCol = a.cells[index].textContent.trim();
+                        const bCol = b.cells[index].textContent.trim();
+                        const aNum = parseFloat(aCol.replace(/[^0-9.-]/g, ''));
+                        const bNum = parseFloat(bCol.replace(/[^0-9.-]/g, ''));
+                        if (!isNaN(aNum) && !isNaN(bNum)) {
+                            return asc ? aNum - bNum : bNum - aNum;
+                        }
+                        return asc ? aCol.localeCompare(bCol) : bCol.localeCompare(aCol);
+                    });
+
+                    rows.forEach(row => tbody.appendChild(row));
+                    asc = !asc;
+                });
+            });
         });
     </script>
 

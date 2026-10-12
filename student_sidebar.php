@@ -27,7 +27,7 @@ if (!isset($level)) {
                 <li><a href="dashboard_student.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'dashboard_student.php' ? 'flex items-center px-6 py-3 bg-blue-600 border-l-4 border-white' : 'flex items-center px-6 py-3 text-blue-100 hover:bg-blue-800 transition'; ?>"><i class="fas fa-home w-6"></i> Dashboard</a></li>
                 
                 <?php if(!in_array($level ?? '', ['Independent', 'Non-Reader'])): ?>
-                    <li><a href="student_course.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'student_course.php' ? 'flex items-center px-6 py-3 bg-blue-600 border-l-4 border-white' : 'flex items-center px-6 py-3 text-blue-100 hover:bg-blue-800 transition'; ?>"><i class="fas fa-book-reader w-6"></i> Course</a></li>
+                    <li><a href="student_course.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'student_course.php' ? 'flex items-center px-6 py-3 bg-blue-600 border-l-4 border-white' : 'flex items-center px-6 py-3 text-blue-100 hover:bg-blue-800 transition'; ?>"><i class="fas fa-book-reader w-6"></i> Materials</a></li>
                 <?php endif; ?>
 
                 <?php if(($level ?? '') !== 'Non-Reader'): ?>

@@ -1,0 +1,153 @@
+================================================================================
+ARAL READING: SYSTEM ASSESSMENT, CASCADING FLOW, & RECOMMENDATION GUIDE
+(Based on DepEd Phil-IRI 2018 Guidelines)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. HOW THE GROUP SCREENING TEST (GST) WORKS
+--------------------------------------------------------------------------------
+The Group Screening Test (GST) is an initial written/silent reading test given to
+all students at the start of the school year. Its purpose is to screen students
+and identify who can read comfortably at their grade level versus who needs
+individualized oral assessment.
+
+In our system (e.g. for a Grade 7 student, scored out of 40 items):
+- Score 28 - 40 (70%+):
+  * Category: "Exempt from Individual Assessment"
+  * Action: The student is automatically classified as an INDEPENDENT reader
+    for their enrolled grade. They do NOT need to take the oral reading test.
+- Score 16 - 27 (40% - 69%):
+  * Category: "Requires Individual Assessment"
+  * Action: The student starts the oral assessment 2 grade levels below their
+    enrolled grade. For a Grade 7 student: 7 - 2 = Grade 5.
+- Score 0 - 15 (< 40%):
+  * Category: "Requires Individual Assessment (Lowest Range)"
+  * Action: The student starts 3 grade levels below their enrolled grade.
+    For Grade 7: 7 - 3 = Grade 4. (Grade 4 is the floor for secondary level).
+
+Formula in code:
+  startingGrade = Math.max(4, enrolledGrade - offset)
+
+
+--------------------------------------------------------------------------------
+2. HOW THE CASCADING FLOW WORKS
+--------------------------------------------------------------------------------
+After the GST assigns the starting grade, the student takes individual oral
+reading passages (reading aloud + answering comprehension questions).
+
+A. Passage Classification (Phil-IRI Standard Criteria):
+For every passage:
+- Word Reading Accuracy (WR) = ((Total Words - Miscues) / Total Words) * 100
+- Comprehension Score (CR) = (Correct Answers / Total Questions) * 100
+
+Thresholds:
+- Independent:   WR >= 97%  AND  CR >= 80%   --> Move UP (+1 Grade Level)
+- Instructional: WR 90-96%  OR   CR 59-79%   --> Move UP (+1 Grade Level)
+- Frustration:   WR <= 89%  OR   CR <= 58%   --> Move DOWN (-1 Grade Level)
+
+B. Cascading Movement Rules:
+- If Instructional or Independent: Move UP (+1 grade level) to test difficulty.
+- If Frustration: Move DOWN (-1 grade level) to find the baseline.
+
+C. Stopping Conditions (When does cascading stop?):
+1. Enrolled Grade Passed: Student reaches their enrolled grade (e.g. Grade 7)
+   and scores Instructional or Independent.
+2. Ceiling Found: Student was moving UP and hits Frustration.
+3. Floor/Baseline Found: Student started at Frustration, moved DOWN, and finally
+   scored Instructional or Independent.
+4. All 3 Found: Independent, Instructional, and Frustration grades identified.
+5. Out of Bounds: Reached the minimum (Grade 4) or maximum (Grade 10).
+
+D. Final Oral Reading Profile Verdict:
+- Independent: Passed enrolled grade as Independent, or exempted via GST.
+- Instructional: Highest Instructional grade meets enrolled grade.
+- Non-Reader: Hits Frustration at Grade 4 with NO Instructional or Independent
+  scores recorded at any level.
+- Frustration: Reading level is below enrolled grade without qualifying as Non-Reader.
+
+
+--------------------------------------------------------------------------------
+3. HOW PRE-TEST AND POST-TEST WORK
+--------------------------------------------------------------------------------
+Inside Course Modules (e.g., Grade 7 Reading Modules), students take paired
+assessments to measure learning gains after intervention:
+
+- Course Pre-Test (Course-Pre-Test):
+  Taken before the module to record baseline reading skills.
+- Course Post-Test (Course-Post-Test):
+  Taken after the module to measure improvement.
+
+The system tracks 4 Core Reading Metrics:
+1. Reading Accuracy (%): Percentage of words read accurately without miscues.
+2. Comprehension (% and Raw): Questions answered correctly out of total questions.
+3. Reading Speed (WPM): Words per minute spoken.
+4. Correct Words / Fluency (WCPM): Words Correct Per Minute (WPM * (Accuracy / 100)).
+
+The system calculates differences (Diffs: Post - Pre) for all 4 metrics
+(e.g., +5.5% Accuracy, +12 WPM, +2/10 Comprehension).
+
+
+--------------------------------------------------------------------------------
+4. RECOMMENDATION SYSTEM AND TRIGGERS
+--------------------------------------------------------------------------------
+The unified recommendation engine (comparison_widget.php) evaluates the metrics
+between Pre-Test and Post-Test to give smart recommendations:
+
+1. "Improved" (Green / Trend Up)
+   - Triggers when:
+     a) Overall oral reading profile jumped to a higher level
+        (e.g., Frustration -> Instructional, or Instructional -> Independent).
+     b) Accuracy OR Comprehension improved (accDiff > 0 or compDiff > 0)
+        AND fluency remained stable (wpmDiff >= -2 and wcpmDiff >= -2).
+   - Recommendation:
+     "The student's overall reading profile successfully improved from [Pre] to [Post]." OR
+     "The student showed clear improvement in [Accuracy / Comprehension] while maintaining reading fluency."
+
+2. "Partial Progress" (Blue / Up-Right Dots)
+   - Triggers when:
+     Accuracy or Comprehension improved, but the profile tier remained the same
+     or fluency slightly declined.
+   - Recommendation:
+     "The reading profile remains [Pre Profile], but the student showed measurable improvement in [Accuracy / Comprehension]."
+
+3. "Maintained" (Amber / Minus)
+   - Triggers when:
+     Metrics are essentially unchanged between Pre-Test and Post-Test.
+   - Recommendation:
+     "The student's reading profile remains at [Pre Profile] and metrics are generally stable with no meaningful improvement or decline."
+
+4. "Declined" (Red / Trend Down)
+   - Triggers when:
+     a) Overall oral profile dropped (e.g., Independent -> Instructional).
+     b) Both Accuracy AND Comprehension declined (accDiff < 0 and compDiff < 0).
+   - Recommendation:
+     "The student's overall reading profile dropped from [Pre Profile] to [Post Profile]. Additional support is needed." OR
+     "Both Accuracy and Comprehension declined meaningfully. The teacher should review the student's reading needs and provide additional support."
+
+5. "In Progress" (Blue / Spinner)
+   - Triggers when:
+     Student finished the Pre-Test but has not completed the Post-Test.
+   - Recommendation:
+     "The student has completed the Pre-Test. They should now review the course material and proceed to take the Post-Test when ready."
+
+6. "Post-Test Only" (Slate / Check)
+   - Triggers when:
+     Student submitted a Post-Test with no prior Pre-Test on record.
+   - Recommendation:
+     "The student completed the Post-Test without a recorded Pre-Test."
+
+
+--------------------------------------------------------------------------------
+5. OFFICIAL DEPED PHIL-IRI SUPPORTING REFERENCES
+--------------------------------------------------------------------------------
+- DepEd Order No. 14, s. 2018:
+  "Policy Guidelines on the Administration of the Revised Philippine Informal
+   Reading Inventory (Phil-IRI)"
+  URL: https://www.deped.gov.ph/wp-content/uploads/2018/03/DO_s2018_014.pdf
+
+- DepEd Bureau of Learning Delivery (BLD):
+  Revised Phil-IRI Manual (English & Filipino), 2018.
+  * Stage 1: Group Screening Test (GST) Cut-off scores.
+  * Stage 2: Individualized Oral Reading Assessment (Accuracy & Comprehension Matrix).
+  * Stage 3: Intervention & Post-Testing Evaluation.
+================================================================================

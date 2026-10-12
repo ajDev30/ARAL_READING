@@ -18,8 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'openai_model',
         'azure_speech_key',
         'azure_region', 
-        'azure_language', 
-        'available_sections'
+        'azure_language'
     ];
     
     // Save to DB
@@ -28,6 +27,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (:k, :v) ON DUPLICATE KEY UPDATE setting_value = :v2");
         $stmt->execute(['k' => $key, 'v' => $val, 'v2' => $val]);
     }
+
+    // Save sections per grade (Grades 7, 8, 9, 10)
+    $posted_sections = [];
+    if (isset($_POST['sections']) && is_array($_POST['sections'])) {
+        $posted_sections = $_POST['sections'];
+    } elseif (!empty($_POST['sections_json'])) {
+        $decoded = json_decode($_POST['sections_json'], true);
+        if (is_array($decoded)) {
+            $posted_sections = $decoded;
+        }
+    }
+    save_sections_by_grade($pdo, $posted_sections);
     
     // Generate .env file for the Python backend
     $env_content = "AZURE_OPENAI_API_KEY=" . ($_POST['azure_openai_key'] ?? '') . "\n";
@@ -74,6 +85,7 @@ $settings = [];
 foreach($settings_raw as $s) {
     $settings[$s['setting_key']] = $s['setting_value'];
 }
+$sections_by_grade = get_sections_by_grade($pdo);
 
 $has_openai_key = !empty($settings['azure_openai_key']);
 $has_speech_key = !empty($settings['azure_speech_key']);
@@ -264,12 +276,92 @@ if ($is_enabled && $requirements_met) {
             </div>
 
             
-            <h3 class="font-bold text-slate-800 text-lg mb-2 mt-8"><i class="fas fa-users text-blue-500 mr-2"></i> Student Sections</h3>
-            <div class="grid grid-cols-1 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Available Sections (Comma-separated)</label>
-                    <textarea name="available_sections" rows="2" placeholder="e.g. Section A, Section B, Section C" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"><?php echo htmlspecialchars($settings['available_sections'] ?? ''); ?></textarea>
-                    <p class="text-[11px] text-slate-500 mt-1">These sections will appear as a dropdown choice for students when they register an account.</p>
+            <!-- Student Sections Manager -->
+            <div class="border-t border-slate-200 pt-6 mt-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg flex items-center">
+                            <i class="fas fa-users-cog text-blue-500 mr-2"></i> Student Sections by Grade Level
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Manage sections for Grades 7 to 10. Students will only see sections for their selected grade level during registration.</p>
+                    </div>
+                    <div class="mt-2 md:mt-0 text-xs font-semibold text-slate-500">
+                        <span class="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+                            <i class="fas fa-layer-group mr-1.5"></i> Grades 7, 8, 9, 10
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <?php 
+                    $grades = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'];
+                    $gradeColors = [
+                        'Grade 7' => ['badge' => 'bg-blue-100 text-blue-700 border-blue-200', 'btn' => 'bg-blue-600 hover:bg-blue-700'],
+                        'Grade 8' => ['badge' => 'bg-indigo-100 text-indigo-700 border-indigo-200', 'btn' => 'bg-indigo-600 hover:bg-indigo-700'],
+                        'Grade 9' => ['badge' => 'bg-emerald-100 text-emerald-700 border-emerald-200', 'btn' => 'bg-emerald-600 hover:bg-emerald-700'],
+                        'Grade 10' => ['badge' => 'bg-purple-100 text-purple-700 border-purple-200', 'btn' => 'bg-purple-600 hover:bg-purple-700'],
+                    ];
+
+                    foreach ($grades as $grade):
+                        $gradeNum = preg_replace('/[^0-9]/', '', $grade);
+                        $gradeKey = 'Grade_' . $gradeNum;
+                        $secs = $sections_by_grade[$grade] ?? [];
+                        $c = $gradeColors[$grade];
+                    ?>
+                    <div class="bg-slate-50/70 rounded-xl border border-slate-200 p-4 flex flex-col justify-between shadow-sm">
+                        <div>
+                            <!-- Grade Card Header -->
+                            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                                <div class="flex items-center space-x-2">
+                                    <span class="w-7 h-7 rounded-lg <?php echo $c['badge']; ?> border font-bold flex items-center justify-center text-xs">
+                                        <?php echo $gradeNum; ?>
+                                    </span>
+                                    <h4 class="font-bold text-sm text-slate-800"><?php echo $grade; ?></h4>
+                                </div>
+                                <span id="count_<?php echo $gradeKey; ?>" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                                    <?php echo count($secs); ?> <?php echo count($secs) === 1 ? 'section' : 'sections'; ?>
+                                </span>
+                            </div>
+
+                            <!-- Add Section Input -->
+                            <div class="flex gap-1.5 mb-3">
+                                <input type="text" id="input_<?php echo $gradeKey; ?>" 
+                                    placeholder="Enter section name (e.g. <?php echo $gradeNum == 7 ? 'Rizal' : ($gradeNum == 8 ? 'Ruby' : ($gradeNum == 9 ? 'Phoenix' : 'Crimson')); ?>)..." 
+                                    class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                                    onkeydown="if(event.key === 'Enter'){ event.preventDefault(); addSection('<?php echo $grade; ?>', '<?php echo $gradeKey; ?>'); }">
+                                <button type="button" onclick="addSection('<?php echo $grade; ?>', '<?php echo $gradeKey; ?>')" 
+                                    class="px-3 py-1.5 <?php echo $c['btn']; ?> text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0 shadow-sm">
+                                    <i class="fas fa-plus text-[10px]"></i> Add
+                                </button>
+                            </div>
+
+                            <!-- Sections List -->
+                            <div id="list_<?php echo $gradeKey; ?>" class="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+                                <?php if (empty($secs)): ?>
+                                    <p class="empty-msg text-xs text-slate-400 italic py-4 text-center">No sections configured for <?php echo $grade; ?>.</p>
+                                <?php else: ?>
+                                    <?php foreach ($secs as $sec): ?>
+                                    <div class="section-row flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200 text-xs shadow-2xs group hover:border-slate-300 transition" data-section="<?php echo htmlspecialchars($sec); ?>">
+                                        <div class="section-display flex items-center gap-2 flex-1 mr-2 overflow-hidden">
+                                            <i class="fas fa-chalkboard text-slate-400 text-[11px]"></i>
+                                            <span class="section-text font-semibold text-slate-700 truncate"><?php echo htmlspecialchars($sec); ?></span>
+                                            <input type="hidden" name="sections[<?php echo $grade; ?>][]" value="<?php echo htmlspecialchars($sec); ?>">
+                                        </div>
+                                        <div class="section-actions flex items-center gap-1 shrink-0">
+                                            <button type="button" onclick="startEditSection(this, '<?php echo $grade; ?>', '<?php echo $gradeKey; ?>')" title="Rename Section" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition">
+                                                <i class="fas fa-pencil-alt text-[10px]"></i>
+                                            </button>
+                                            <button type="button" onclick="deleteSection(this, '<?php echo $grade; ?>', '<?php echo $gradeKey; ?>')" title="Remove Section" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+                                                <i class="fas fa-trash-alt text-[10px]"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
 
@@ -279,13 +371,165 @@ if ($is_enabled && $requirements_met) {
         </form>
     </main>
 
-        </div>
-<script>
+    </div>
+    <script>
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('appSidebar');
             const overlay = document.getElementById('sidebarOverlay');
             if(sidebar) sidebar.classList.toggle('-translate-x-full');
             if(overlay) overlay.classList.toggle('hidden');
+        };
+
+        function updateCount(gradeKey) {
+            const list = document.getElementById('list_' + gradeKey);
+            const countBadge = document.getElementById('count_' + gradeKey);
+            const rows = list.querySelectorAll('.section-row');
+            const count = rows.length;
+            countBadge.textContent = count + (count === 1 ? ' section' : ' sections');
+
+            const emptyMsg = list.querySelector('.empty-msg');
+            if (count === 0) {
+                if (!emptyMsg) {
+                    const p = document.createElement('p');
+                    p.className = 'empty-msg text-xs text-slate-400 italic py-4 text-center';
+                    p.textContent = 'No sections configured.';
+                    list.appendChild(p);
+                }
+            } else if (emptyMsg) {
+                emptyMsg.remove();
+            }
+        }
+
+        function addSection(gradeName, gradeKey) {
+            const input = document.getElementById('input_' + gradeKey);
+            const val = input.value.trim();
+            if (!val) {
+                input.focus();
+                return;
+            }
+
+            const list = document.getElementById('list_' + gradeKey);
+            const existing = Array.from(list.querySelectorAll('input[type="hidden"]')).map(el => el.value.toLowerCase());
+            if (existing.includes(val.toLowerCase())) {
+                alert('Section "' + val + '" already exists in ' + gradeName + '.');
+                input.focus();
+                return;
+            }
+
+            const emptyMsg = list.querySelector('.empty-msg');
+            if (emptyMsg) emptyMsg.remove();
+
+            const row = document.createElement('div');
+            row.className = 'section-row flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200 text-xs shadow-2xs group hover:border-slate-300 transition';
+            row.setAttribute('data-section', val);
+            row.innerHTML = `
+                <div class="section-display flex items-center gap-2 flex-1 mr-2 overflow-hidden">
+                    <i class="fas fa-chalkboard text-slate-400 text-[11px]"></i>
+                    <span class="section-text font-semibold text-slate-700 truncate">` + escapeHtml(val) + `</span>
+                    <input type="hidden" name="sections[` + gradeName + `][]" value="` + escapeHtml(val) + `">
+                </div>
+                <div class="section-actions flex items-center gap-1 shrink-0">
+                    <button type="button" onclick="startEditSection(this, '` + gradeName + `', '` + gradeKey + `')" title="Rename Section" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition">
+                        <i class="fas fa-pencil-alt text-[10px]"></i>
+                    </button>
+                    <button type="button" onclick="deleteSection(this, '` + gradeName + `', '` + gradeKey + `')" title="Remove Section" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+                        <i class="fas fa-trash-alt text-[10px]"></i>
+                    </button>
+                </div>
+            `;
+
+            list.appendChild(row);
+            input.value = '';
+            input.focus();
+            updateCount(gradeKey);
+        }
+
+        function deleteSection(btn, gradeName, gradeKey) {
+            const row = btn.closest('.section-row');
+            const name = row.getAttribute('data-section');
+            if (confirm('Are you sure you want to remove section "' + name + '" from ' + gradeName + '?')) {
+                row.remove();
+                updateCount(gradeKey);
+            }
+        }
+
+        function startEditSection(btn, gradeName, gradeKey) {
+            const row = btn.closest('.section-row');
+            const displayDiv = row.querySelector('.section-display');
+            const actionsDiv = row.querySelector('.section-actions');
+            const currentName = row.getAttribute('data-section');
+
+            displayDiv.classList.add('hidden');
+            actionsDiv.classList.add('hidden');
+
+            const editContainer = document.createElement('div');
+            editContainer.className = 'edit-box flex items-center gap-1.5 w-full';
+            editContainer.innerHTML = `
+                <input type="text" class="edit-input flex-1 px-2 py-1 text-xs border border-blue-400 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none font-semibold bg-white" value="` + escapeHtml(currentName) + `">
+                <button type="button" class="btn-save-edit w-6 h-6 rounded bg-emerald-600 text-white flex items-center justify-center text-[10px] hover:bg-emerald-700 transition" title="Save">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button type="button" class="btn-cancel-edit w-6 h-6 rounded bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] hover:bg-slate-300 transition" title="Cancel">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            row.appendChild(editContainer);
+            const input = editContainer.querySelector('.edit-input');
+            input.focus();
+            input.select();
+
+            const saveEdit = function() {
+                const newVal = input.value.trim();
+                if (!newVal) {
+                    alert('Section name cannot be empty.');
+                    input.focus();
+                    return;
+                }
+
+                const list = document.getElementById('list_' + gradeKey);
+                const existing = Array.from(list.querySelectorAll('.section-row'))
+                    .filter(r => r !== row)
+                    .map(r => r.getAttribute('data-section').toLowerCase());
+
+                if (existing.includes(newVal.toLowerCase())) {
+                    alert('Section "' + newVal + '" already exists in ' + gradeName + '.');
+                    input.focus();
+                    return;
+                }
+
+                row.setAttribute('data-section', newVal);
+                displayDiv.querySelector('.section-text').textContent = newVal;
+                displayDiv.querySelector('input[type="hidden"]').value = newVal;
+
+                editContainer.remove();
+                displayDiv.classList.remove('hidden');
+                actionsDiv.classList.remove('hidden');
+            };
+
+            const cancelEdit = function() {
+                editContainer.remove();
+                displayDiv.classList.remove('hidden');
+                actionsDiv.classList.remove('hidden');
+            };
+
+            editContainer.querySelector('.btn-save-edit').addEventListener('click', saveEdit);
+            editContainer.querySelector('.btn-cancel-edit').addEventListener('click', cancelEdit);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>

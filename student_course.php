@@ -81,7 +81,7 @@ $fullName = htmlspecialchars($user['fname'] . ' ' . $mi . ' ' . $user['lname']);
     <link rel="icon" type="image/png" href="https://tibungcodistrict.wordpress.com/wp-content/uploads/2018/06/untitled-1.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Course - Phil-IRI</title>
+    <title>Materials - Phil-IRI</title>
     <script>
         const originalWarn = console.warn;
         console.warn = function() {
@@ -163,8 +163,7 @@ $fullName = htmlspecialchars($user['fname'] . ' ' . $mi . ' ' . $user['lname']);
             <div class="flex items-center">
                 <button onclick="toggleSidebar()" class="md:hidden mr-4 text-slate-500 hover:text-blue-600 focus:outline-none"><i class="fas fa-bars text-xl"></i></button>
                 <div>
-                <h2 class="font-bold text-2xl text-slate-800">My Course</h2>
-                <p class="text-sm text-slate-500">Reading Intervention Materials</p>
+                <h2 class="font-bold text-2xl text-slate-800">Materials</h2>
             </div>
             </div>
             <div class="flex items-center space-x-3">
@@ -198,7 +197,7 @@ $fullName = htmlspecialchars($user['fname'] . ' ' . $mi . ' ' . $user['lname']);
                     </div>
                 <?php else: ?>
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-8 text-center">
-                        <h2 class="text-2xl font-bold text-slate-800 mb-2">Welcome to your Course!</h2>
+                        <h2 class="text-2xl font-bold text-slate-800 mb-2">Welcome, <?php echo htmlspecialchars($user['fname'] ?? 'Student'); ?></h2>
                         <p class="text-slate-500">Complete your Pre-Test, study the modules, and then take your Post-Test to see how much you've improved.</p>
                     </div>
                 <?php endif; ?>
@@ -206,8 +205,8 @@ $fullName = htmlspecialchars($user['fname'] . ' ' . $mi . ' ' . $user['lname']);
                 <?php if (empty($courses)): ?>
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-500">
                         <i class="fas fa-book-reader text-4xl text-slate-300 mb-3 block"></i>
-                        <h3 class="text-lg font-bold text-slate-700">No Course Tests Available</h3>
-                        <p class="text-sm mt-1">There are currently no published course assessments for Grade <?php echo $enrolled_grade; ?>. Please check back later or contact your teacher.</p>
+                        <h3 class="text-lg font-bold text-slate-700">No Materials Available</h3>
+                        <p class="text-sm mt-1">There are currently no published materials for Grade <?php echo $enrolled_grade; ?>. Please check back later or contact your teacher.</p>
                     </div>
                 <?php endif; ?>
 

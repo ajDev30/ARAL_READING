@@ -49,7 +49,44 @@ foreach($students as &$s) {
         }
     }
     
+    // Enrich with course assessment progress & custom teacher recommendations
+    $courseSummary = get_student_course_progress_summary($pdo, $s['id']);
+    $s['course_summary'] = $courseSummary;
+
+    $profRank = ['non-reader' => 0, 'frustration' => 1, 'instructional' => 2, 'independent' => 3];
+    if ($courseSummary['has_tests'] && !empty($courseSummary['latest_profile']) && $courseSummary['latest_profile'] !== 'Pending') {
+        $courseProf = $courseSummary['latest_profile'];
+        $courseRank = $profRank[strtolower(trim($courseProf))] ?? 1;
+        $baselineRank = $profRank[strtolower(trim($final_status))] ?? -1;
+        if ($courseSummary['post'] || $courseRank > $baselineRank || $final_status === 'Pending') {
+            $final_status = ucfirst(strtolower(trim($courseProf)));
+        }
+    }
+    
     $s['oral_reading_profile'] = $final_status;
+    
+    // Status Remarks calculation
+    if (!empty($courseSummary['has_custom_rec']) && !empty($courseSummary['condition_tag'])) {
+        $s['status_remarks'] = 'Teacher Note: ' . $courseSummary['condition_tag'];
+    } elseif (!empty($courseSummary['has_custom_rec']) && !empty($courseSummary['recommendation_text'])) {
+        $s['status_remarks'] = 'Teacher Recommendation Applied';
+    } elseif (!empty($courseSummary['post'])) {
+        $s['status_remarks'] = $courseSummary['outcome'] . ' (' . $final_status . ') - Post-Test Completed';
+    } elseif (!empty($courseSummary['pre'])) {
+        $s['status_remarks'] = 'Course Pre-Test Completed (In Progress)';
+    } else {
+        if ($final_status === 'Independent') {
+            $s['status_remarks'] = 'Mastery / Grade-Ready';
+        } elseif ($final_status === 'Instructional') {
+            $s['status_remarks'] = 'Recommended for Guided Reading Practice';
+        } elseif ($final_status === 'Frustration') {
+            $s['status_remarks'] = 'Requires Targeted Reading Support';
+        } elseif ($final_status === 'Non-Reader') {
+            $s['status_remarks'] = 'Urgent: Individual Reading Intervention';
+        } else {
+            $s['status_remarks'] = 'Awaiting Assessment / GST';
+        }
+    }
     
     if($final_status === 'Independent') $independent++;
     elseif($final_status === 'Instructional') $instructional++;
@@ -289,12 +326,7 @@ sort($grade_levels);
                                     if($lvl=='Non-Reader') $lc='bg-slate-700 text-white';
 
                                     $clean_sec = preg_replace('/^Grade\s+\d+\s+/i', '', $s['section']);
-
-                                    $remarks = 'Awaiting Assessment / GST';
-                                    if ($lvl === 'Independent') $remarks = 'Mastery / Grade-Ready';
-                                    elseif ($lvl === 'Instructional') $remarks = 'Recommended for Guided Reading Practice';
-                                    elseif ($lvl === 'Frustration') $remarks = 'Requires Targeted Reading Support';
-                                    elseif ($lvl === 'Non-Reader') $remarks = 'Urgent: Individual Reading Intervention';
+                                    $remarks = $s['status_remarks'] ?? 'Awaiting Assessment / GST';
                             ?>
                             <tr class="hover:bg-slate-50 transition"
                                 data-grade="<?php echo htmlspecialchars($s['grade_level']); ?>" 
@@ -304,7 +336,12 @@ sort($grade_levels);
                                 <td class="py-2.5 px-3 text-slate-500 font-mono text-xs"><?php echo htmlspecialchars($s['lrn']); ?></td>
                                 <td class="py-2.5 px-3 text-slate-600"><?php echo htmlspecialchars($s['grade_level'] . ' - ' . $clean_sec); ?></td>
                                 <td class="py-2.5 px-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-semibold <?php echo $lc; ?>"><?php echo $lvl; ?></span></td>
-                                <td class="py-2.5 px-3 text-slate-600 text-xs font-medium"><?php echo htmlspecialchars($remarks); ?></td>
+                                <td class="py-2.5 px-3 text-slate-600 text-xs font-medium">
+                                    <?php echo htmlspecialchars($remarks); ?>
+                                    <?php if (!empty($s['course_summary']['has_custom_rec'])): ?>
+                                        <span class="inline-block ml-1 text-indigo-600" title="Custom Teacher Recommendation Applied"><i class="fas fa-tag text-[10px]"></i></span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endforeach; } else { echo "<tr><td colspan='5' class='text-center py-4 text-slate-500'>No students found.</td></tr>"; } ?>
                         </tbody>

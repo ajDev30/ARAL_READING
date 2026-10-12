@@ -336,4 +336,153 @@ if (!function_exists('resolve_student_recommendation')) {
         ];
     }
 }
+
+if (!function_exists('get_student_course_progress_summary')) {
+    function get_student_course_progress_summary($pdo, $user_id) {
+        if (!$pdo || empty($user_id)) {
+            return [
+                'has_tests' => false,
+                'outcome' => 'No Data',
+                'badge_class' => 'bg-slate-100 text-slate-500',
+                'latest_profile' => 'Pending',
+                'has_custom_rec' => false,
+                'condition_tag' => null,
+                'recommendation_text' => null,
+                'course_title' => null,
+                'pre' => null,
+                'post' => null,
+                'acc_diff' => 0,
+                'comp_diff' => 0
+            ];
+        }
+
+        // Fetch course attempts
+        $stmt = $pdo->prepare("
+            SELECT a.*, c.title as course_title, c.questions_json
+            FROM reading_attempts a
+            JOIN course_assessments c ON a.passage_id = c.id
+            WHERE a.user_id = ? AND a.phase IN ('Course-Pre-Test', 'Course-Post-Test')
+            ORDER BY a.created_at ASC
+        ");
+        $stmt->execute([$user_id]);
+        $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($attempts)) {
+            return [
+                'has_tests' => false,
+                'outcome' => 'No Data',
+                'badge_class' => 'bg-slate-100 text-slate-500',
+                'latest_profile' => 'Pending',
+                'has_custom_rec' => false,
+                'condition_tag' => null,
+                'recommendation_text' => null,
+                'course_title' => null,
+                'pre' => null,
+                'post' => null,
+                'acc_diff' => 0,
+                'comp_diff' => 0
+            ];
+        }
+
+        // Group into course modules
+        $pairs = [];
+        foreach ($attempts as $a) {
+            $courseGroup = 'Course Assessment';
+            if (preg_match('/^(.*?)(?:\s*(?:—|-)\s*(?:PRE-TEST|POST-TEST))/i', $a['course_title'], $matches)) {
+                $courseGroup = trim($matches[1]);
+            } else if (preg_match('/GRADE (\d+)/i', $a['course_title'], $matches)) {
+                $courseGroup = "Grade " . $matches[1] . " Reading Module";
+            } else {
+                $courseGroup = $a['course_title'];
+            }
+
+            if (!isset($pairs[$courseGroup])) {
+                $pairs[$courseGroup] = ['title' => $courseGroup, 'pre' => null, 'post' => null];
+            }
+            if ($a['phase'] === 'Course-Pre-Test') {
+                $pairs[$courseGroup]['pre'] = $a;
+            } else {
+                $pairs[$courseGroup]['post'] = $a;
+            }
+        }
+
+        // Evaluate the active (latest) course group
+        $activeGroup = end($pairs);
+        $title = $activeGroup['title'] ?? 'Course Assessment';
+        $pre = $activeGroup['pre'];
+        $post = $activeGroup['post'];
+
+        $profRank = ['frustration' => 1, 'instructional' => 2, 'independent' => 3];
+        $outcome = 'In Progress';
+        $badgeClass = 'bg-blue-50 text-blue-600 border border-blue-200 font-semibold';
+        $latestProfile = 'Pending';
+        $accDiff = 0;
+        $compDiff = 0;
+
+        if ($pre && $post) {
+            $latestProfile = $post['oral_reading_profile'] ?? 'Instructional';
+            $accDiff = floatval($post['accuracy_score']) - floatval($pre['accuracy_score']);
+            $compDiff = floatval($post['comprehension_score']) - floatval($pre['comprehension_score']);
+            $wpmDiff = floatval($post['reading_speed']) - floatval($pre['reading_speed']);
+            $wcpmPre = round(floatval($pre['reading_speed']) * (floatval($pre['accuracy_score']) / 100));
+            $wcpmPost = round(floatval($post['reading_speed']) * (floatval($post['accuracy_score']) / 100));
+            $wcpmDiff = $wcpmPost - $wcpmPre;
+
+            $preLevel = $profRank[strtolower(trim($pre['oral_reading_profile'] ?? ''))] ?? 0;
+            $postLevel = $profRank[strtolower(trim($post['oral_reading_profile'] ?? ''))] ?? 0;
+
+            $accImproved = $accDiff > 0;
+            $compImproved = $compDiff > 0;
+            $accDeclined = $accDiff < 0;
+            $compDeclined = $compDiff < 0;
+            $fluencyStable = $wcpmDiff >= -2 && $wpmDiff >= -2;
+
+            if ($postLevel > $preLevel || (($accImproved || $compImproved) && $fluencyStable)) {
+                $outcome = 'Improved';
+                $badgeClass = 'bg-emerald-100 text-emerald-800 font-bold';
+            } else if ($postLevel < $preLevel || ($accDeclined && $compDeclined)) {
+                $outcome = 'Declined';
+                $badgeClass = 'bg-rose-100 text-rose-800 font-bold';
+            } else if ($accImproved || $compImproved) {
+                $outcome = 'Partial Progress';
+                $badgeClass = 'bg-blue-100 text-blue-800 font-semibold';
+            } else {
+                $outcome = 'Maintained';
+                $badgeClass = 'bg-amber-100 text-amber-800 font-semibold';
+            }
+        } elseif ($pre && !$post) {
+            $outcome = 'In Progress';
+            $badgeClass = 'bg-blue-50 text-blue-600 border border-blue-200 font-semibold';
+            $latestProfile = $pre['oral_reading_profile'] ?? 'Pending';
+        } elseif (!$pre && $post) {
+            $outcome = 'Post-Test Only';
+            $badgeClass = 'bg-slate-100 text-slate-600 font-semibold';
+            $latestProfile = $post['oral_reading_profile'] ?? 'Instructional';
+        }
+
+        // Check if teacher saved a custom recommendation / condition tag
+        $stmtRec = $pdo->prepare("SELECT * FROM student_recommendations WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1");
+        $stmtRec->execute([$user_id]);
+        $customRec = $stmtRec->fetch(PDO::FETCH_ASSOC);
+
+        $hasCustomRec = !empty($customRec);
+        $conditionTag = $customRec['condition_tag'] ?? null;
+        $recommendationText = $customRec['recommendation_text'] ?? null;
+
+        return [
+            'has_tests' => true,
+            'course_title' => $title,
+            'outcome' => $outcome,
+            'badge_class' => $badgeClass,
+            'latest_profile' => $latestProfile,
+            'has_custom_rec' => $hasCustomRec,
+            'condition_tag' => $conditionTag,
+            'recommendation_text' => $recommendationText,
+            'pre' => $pre,
+            'post' => $post,
+            'acc_diff' => $accDiff,
+            'comp_diff' => $compDiff
+        ];
+    }
+}
 ?>

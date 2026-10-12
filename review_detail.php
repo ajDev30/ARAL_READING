@@ -283,8 +283,100 @@ $has_ops = strpos($eval_data, 'ops') !== false;
         const aJson = typeof rawAns === 'string' ? (rawAns ? JSON.parse(rawAns) : {}) : rawAns;
         
         const rawPassageText = <?php echo json_encode($passage_text); ?>;
+        function normStr(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/[\u201C\u201D]/g, '"')
+                .replace(/[\u2018\u2019]/g, "'")
+                .trim()
+                .toLowerCase();
+        }
+
+        if (typeof escapeHtml !== 'function') {
+            function escapeHtml(text) {
+                if (text === null || text === undefined) return '';
+                return String(text).replace(/&/g, "&amp;")
+                                   .replace(/</g, "&lt;")
+                                   .replace(/>/g, "&gt;")
+                                   .replace(/"/g, "&quot;")
+                                   .replace(/'/g, "&#039;");
+            }
+        }
+
+        function resolveStudentChoice(q, sAns) {
+            let rawAns = sAns;
+            if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) {
+                rawAns = sAns.answer;
+            }
+            if (rawAns === undefined || rawAns === null || rawAns === '') {
+                return { chosenIdx: -1, chosenText: '', hasAnswer: false };
+            }
+
+            if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+                const normRaw = normStr(rawAns);
+
+                // 1. Text match in options
+                const textMatchIdx = q.options.findIndex(opt => normStr(opt) === normRaw);
+                if (textMatchIdx !== -1) {
+                    return { chosenIdx: textMatchIdx, chosenText: q.options[textMatchIdx], hasAnswer: true };
+                }
+
+                // 2. Numeric index
+                const trimmedStr = String(rawAns).trim();
+                if (!isNaN(Number(trimmedStr)) && Number(trimmedStr) >= 0 && Number(trimmedStr) < q.options.length) {
+                    const idx = parseInt(trimmedStr, 10);
+                    return { chosenIdx: idx, chosenText: q.options[idx], hasAnswer: true };
+                }
+
+                // 3. Letter match
+                if (/^[a-zA-Z]$/.test(trimmedStr)) {
+                    const lIdx = trimmedStr.toUpperCase().charCodeAt(0) - 65;
+                    if (lIdx >= 0 && lIdx < q.options.length) {
+                        return { chosenIdx: lIdx, chosenText: q.options[lIdx], hasAnswer: true };
+                    }
+                }
+
+                return { chosenIdx: -1, chosenText: String(rawAns), hasAnswer: true };
+            }
+
+            return { chosenIdx: -1, chosenText: rawAns, hasAnswer: true };
+        }
+
+        function resolveCorrectChoice(q) {
+            if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+                const correctRaw = q.correct !== undefined ? q.correct : '';
+                const normCorrect = normStr(correctRaw);
+
+                // 1. Numeric index
+                const trimmedStr = String(correctRaw).trim();
+                if (!isNaN(Number(trimmedStr)) && Number(trimmedStr) >= 0 && Number(trimmedStr) < q.options.length) {
+                    const idx = parseInt(trimmedStr, 10);
+                    return { correctIdx: idx, correctText: q.options[idx] };
+                }
+
+                // 2. Text match
+                const textMatchIdx = q.options.findIndex(opt => normStr(opt) === normCorrect);
+                if (textMatchIdx !== -1) {
+                    return { correctIdx: textMatchIdx, correctText: q.options[textMatchIdx] };
+                }
+
+                // 3. Letter match
+                if (/^[a-zA-Z]$/.test(trimmedStr)) {
+                    const lIdx = trimmedStr.toUpperCase().charCodeAt(0) - 65;
+                    if (lIdx >= 0 && lIdx < q.options.length) {
+                        return { correctIdx: lIdx, correctText: q.options[lIdx] };
+                    }
+                }
+
+                return { correctIdx: -1, correctText: String(correctRaw) };
+            }
+
+            return { correctIdx: -1, correctText: String(q.correct !== undefined ? q.correct : '') };
+        }
+
         function renderComprehensionReview() {
             const container = document.getElementById('comprehensionList');
+            if (!container) return;
             if (!qJson || qJson.length === 0) {
                 container.innerHTML = '<div class="text-slate-500 text-sm italic">No comprehension questions found for this attempt.</div>';
                 return;
@@ -292,95 +384,260 @@ $has_ops = strpos($eval_data, 'ops') !== false;
             
             let html = '';
             qJson.forEach((q, idx) => {
-                let sAns = aJson[idx]; // CHANGED to let so it can be reassigned
-                const pts = q.type === 'essay' ? (parseInt(q.points) || 30) : 1;
-                
-                // For auto-graded types, just show the score (1 or 0)
-                // For essays, allow teacher to input score
+                let sAns = aJson[idx];
+                const pts = q.type === 'essay' ? (parseInt(q.points) || 30) : 
+                            (q.type === 'enumeration' ? (q.answers?.length || parseInt(q.count) || 1) : 1);
                 
                 let rawStudentAns = sAns;
                 if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) { 
                     rawStudentAns = sAns.answer; 
                     sAns = sAns.answer; 
                 }
-                
-                let isCorrect = false;
-                let sAnsDisplay = rawStudentAns;
-                let optionsHtml = '';
-                
-                if (q.type === 'multichoice' || q.options) {
-                    const chosenIdx = parseInt(rawStudentAns);
-                    const correctIdx = parseInt(q.correct);
-                    isCorrect = chosenIdx === correctIdx;
-                    
-                    if (q.options && q.options.length > 0) {
-                        optionsHtml += '<div class="mt-3 mb-2 space-y-1">';
-                        q.options.forEach((opt, oIdx) => {
-                            let optClasses = 'p-2 rounded border text-sm ';
-                            let icon = '';
-                            if (oIdx === chosenIdx && oIdx === correctIdx) {
-                                optClasses += 'bg-emerald-50 border-emerald-300 text-emerald-800 font-medium';
-                                icon = '<i class="fas fa-check-circle text-emerald-500 mr-2"></i>';
-                            } else if (oIdx === chosenIdx) {
-                                optClasses += 'bg-rose-50 border-rose-300 text-rose-800 font-medium';
-                                icon = '<i class="fas fa-times-circle text-rose-500 mr-2"></i>';
-                            } else if (oIdx === correctIdx) {
-                                optClasses += 'bg-emerald-50 border-emerald-200 text-emerald-700 border-dashed';
-                                icon = '<i class="fas fa-check text-emerald-400 mr-2"></i>';
-                            } else {
-                                optClasses += 'bg-white border-slate-200 text-slate-600';
-                                icon = '<span class="inline-block w-4 mr-2 text-center text-slate-400 font-bold">' + String.fromCharCode(65 + oIdx) + '.</span>';
-                            }
-                            optionsHtml += '<div class="' + optClasses + '">' + icon + opt + '</div>';
-                        });
-                        optionsHtml += '</div>';
-                        
-                        // Set text to the actual string if they answered
-                        if (!isNaN(chosenIdx) && q.options[chosenIdx]) {
-                            sAnsDisplay = q.options[chosenIdx];
-                        } else {
-                            sAnsDisplay = '<i>No answer provided</i>';
-                        }
+
+                const isEssay = q.type === 'essay';
+                const isEnum = q.type === 'enumeration';
+                const isTrueFalse = q.type === 'truefalse';
+                const isMulti = q.type === 'multichoice' || (!q.type && q.options) || (q.options && Array.isArray(q.options) && q.options.length > 0);
+
+                let statusBadge = '';
+                let contentHtml = '';
+
+                if (isMulti) {
+                    const student = resolveStudentChoice(q, rawStudentAns);
+                    const correct = resolveCorrectChoice(q);
+                    const isCorrect = student.hasAnswer && student.chosenIdx !== -1 && student.chosenIdx === correct.correctIdx;
+
+                    if (!student.hasAnswer) {
+                        statusBadge = '<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200"><i class="fas fa-minus-circle mr-1 text-slate-400"></i>No Answer (0 pt)</span>';
+                    } else if (isCorrect) {
+                        statusBadge = '<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200"><i class="fas fa-check-circle mr-1 text-emerald-600"></i>Correct (+1 pt)</span>';
+                    } else {
+                        statusBadge = '<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-rose-100 text-rose-800 border border-rose-200"><i class="fas fa-times-circle mr-1 text-rose-600"></i>Incorrect (0 pt)</span>';
                     }
-                } else {
-                    if (Array.isArray(rawStudentAns)) sAnsDisplay = rawStudentAns.join(', ');
-                    else if (typeof rawStudentAns === 'boolean' || typeof rawStudentAns === 'string' || typeof rawStudentAns === 'number') sAnsDisplay = rawStudentAns;
-                    else sAnsDisplay = '<i>No answer provided</i>';
-                }
-                
-                html += `
-                <div class="border rounded-lg p-4 bg-slate-50 relative q-review-block" data-idx="${idx}" data-type="${q.type}" data-max="${pts}">
-                    <div class="font-bold text-slate-700 mb-2">${idx + 1}. ${q.question || q.text || ''}</div>
-                `;
-                
-                if (optionsHtml) {
-                    html += optionsHtml;
-                } else {
-                    html += `
-                    <div class="mb-3 text-sm text-slate-600">
-                        <strong class="text-slate-800">Student Answer:</strong><br>
-                        <div class="mt-1 p-2 bg-white border rounded min-h-[40px]">${sAnsDisplay}</div>
+
+                    // Comparison summary banner
+                    const studentLabel = student.chosenIdx !== -1 ? String.fromCharCode(65 + student.chosenIdx) + '. ' + student.chosenText : 
+                                         (student.hasAnswer ? student.chosenText : '<i class="text-slate-400 font-normal">No answer submitted</i>');
+                    const correctLabel = correct.correctIdx !== -1 ? String.fromCharCode(65 + correct.correctIdx) + '. ' + correct.correctText : correct.correctText;
+
+                    const studentBoxBg = !student.hasAnswer ? 'bg-slate-50 border-slate-200' : (isCorrect ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200');
+                    const studentIcon = !student.hasAnswer ? '<i class="fas fa-minus text-slate-400"></i>' : (isCorrect ? '<i class="fas fa-check text-emerald-600"></i>' : '<i class="fas fa-times text-rose-600"></i>');
+                    const studentTextClass = !student.hasAnswer ? 'text-slate-500' : (isCorrect ? 'text-emerald-800' : 'text-rose-800');
+
+                    contentHtml += `
+                    <div class="mb-3.5 p-3 rounded-lg border bg-white grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div class="p-2.5 rounded-lg border ${studentBoxBg} flex items-start gap-2.5">
+                            <span class="w-6 h-6 rounded-full bg-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                                ${studentIcon}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <span class="font-bold uppercase tracking-wider text-slate-500 block text-[10px] mb-0.5">Student's Answer</span>
+                                <span class="text-sm font-semibold break-words ${studentTextClass}">${escapeHtml(studentLabel)}</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border bg-emerald-50/60 border-emerald-200 flex items-start gap-2.5">
+                            <span class="w-6 h-6 rounded-full bg-white text-emerald-600 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <span class="font-bold uppercase tracking-wider text-emerald-700 block text-[10px] mb-0.5">Correct Answer</span>
+                                <span class="text-sm font-semibold text-emerald-900 break-words">${escapeHtml(correctLabel)}</span>
+                            </div>
+                        </div>
                     </div>
                     `;
-                }
-                
-                if (q.type === 'essay') {
-                    // Try to extract existing manual score if we stored it in answers_json previously, else default to 0
+
+                    // Options list
+                    contentHtml += '<div class="space-y-1.5">';
+                    q.options.forEach((opt, oIdx) => {
+                        const isStudentChoice = (oIdx === student.chosenIdx);
+                        const isTheCorrect = (oIdx === correct.correctIdx);
+                        const letter = String.fromCharCode(65 + oIdx);
+
+                        let optClasses = 'p-2.5 rounded-lg border text-sm flex items-center justify-between transition-colors ';
+                        let leftHtml = '';
+                        let tagHtml = '';
+
+                        if (isStudentChoice && isTheCorrect) {
+                            optClasses += 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold ring-1 ring-emerald-300';
+                            leftHtml = `<span class="inline-flex items-center gap-2"><i class="fas fa-check-circle text-emerald-600 text-base"></i><strong class="text-emerald-800">${letter}.</strong><span>${escapeHtml(opt)}</span></span>`;
+                            tagHtml = `<span class="ml-2 shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 shadow-2xs"><i class="fas fa-user-check mr-0.5"></i>Student Choice &bull; Correct</span>`;
+                        } else if (isStudentChoice && !isTheCorrect) {
+                            optClasses += 'bg-rose-50 border-rose-300 text-rose-900 font-semibold ring-1 ring-rose-200';
+                            leftHtml = `<span class="inline-flex items-center gap-2"><i class="fas fa-times-circle text-rose-600 text-base"></i><strong class="text-rose-800">${letter}.</strong><span>${escapeHtml(opt)}</span></span>`;
+                            tagHtml = `<span class="ml-2 shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 shadow-2xs"><i class="fas fa-user-times mr-0.5"></i>Student Choice &bull; Incorrect</span>`;
+                        } else if (isTheCorrect) {
+                            optClasses += 'bg-emerald-50/50 border-emerald-300 text-emerald-800 font-medium border-dashed';
+                            leftHtml = `<span class="inline-flex items-center gap-2"><i class="fas fa-check text-emerald-500 text-sm"></i><strong class="text-emerald-700">${letter}.</strong><span>${escapeHtml(opt)}</span></span>`;
+                            tagHtml = `<span class="ml-2 shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-2xs"><i class="fas fa-check mr-0.5"></i>Correct Answer</span>`;
+                        } else {
+                            optClasses += 'bg-white border-slate-200 text-slate-700';
+                            leftHtml = `<span class="inline-flex items-center gap-2"><span class="inline-block w-4 text-center text-slate-400 font-bold">${letter}.</span><span>${escapeHtml(opt)}</span></span>`;
+                        }
+
+                        contentHtml += `<div class="${optClasses}">${leftHtml}${tagHtml}</div>`;
+                    });
+                    contentHtml += '</div>';
+
+                } else if (isTrueFalse) {
+                    const studentRaw = normStr(rawStudentAns);
+                    const correctRaw = normStr(q.correct);
+                    const hasAnswer = studentRaw === 'true' || studentRaw === 'false';
+                    const isCorrect = hasAnswer && (studentRaw === correctRaw);
+
+                    if (!hasAnswer) {
+                        statusBadge = '<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200"><i class="fas fa-minus-circle mr-1 text-slate-400"></i>No Answer (0 pt)</span>';
+                    } else if (isCorrect) {
+                        statusBadge = '<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200"><i class="fas fa-check-circle mr-1 text-emerald-600"></i>Correct (+1 pt)</span>';
+                    } else {
+                        statusBadge = '<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-rose-100 text-rose-800 border border-rose-200"><i class="fas fa-times-circle mr-1 text-rose-600"></i>Incorrect (0 pt)</span>';
+                    }
+
+                    const studentLabel = hasAnswer ? (studentRaw === 'true' ? 'True' : 'False') : '<i class="text-slate-400 font-normal">No answer submitted</i>';
+                    const correctLabel = correctRaw === 'true' ? 'True' : 'False';
+
+                    const studentBoxBg = !hasAnswer ? 'bg-slate-50 border-slate-200' : (isCorrect ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200');
+                    const studentIcon = !hasAnswer ? '<i class="fas fa-minus text-slate-400"></i>' : (isCorrect ? '<i class="fas fa-check text-emerald-600"></i>' : '<i class="fas fa-times text-rose-600"></i>');
+                    const studentTextClass = !hasAnswer ? 'text-slate-500' : (isCorrect ? 'text-emerald-800' : 'text-rose-800');
+
+                    contentHtml += `
+                    <div class="mb-3.5 p-3 rounded-lg border bg-white grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div class="p-2.5 rounded-lg border ${studentBoxBg} flex items-start gap-2.5">
+                            <span class="w-6 h-6 rounded-full bg-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                                ${studentIcon}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <span class="font-bold uppercase tracking-wider text-slate-500 block text-[10px] mb-0.5">Student's Answer</span>
+                                <span class="text-sm font-semibold ${studentTextClass}">${studentLabel}</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border bg-emerald-50/60 border-emerald-200 flex items-start gap-2.5">
+                            <span class="w-6 h-6 rounded-full bg-white text-emerald-600 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <span class="font-bold uppercase tracking-wider text-emerald-700 block text-[10px] mb-0.5">Correct Answer</span>
+                                <span class="text-sm font-semibold text-emerald-900">${correctLabel}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                    `;
+
+                    ['true', 'false'].forEach(val => {
+                        const label = val === 'true' ? 'True' : 'False';
+                        const isStudentChoice = (val === studentRaw);
+                        const isTheCorrect = (val === correctRaw);
+
+                        let optClasses = 'p-3 rounded-lg border text-sm flex items-center justify-between ';
+                        let tag = '';
+                        let icon = '';
+
+                        if (isStudentChoice && isTheCorrect) {
+                            optClasses += 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold ring-1 ring-emerald-300';
+                            icon = '<i class="fas fa-check-circle text-emerald-600 mr-2"></i>';
+                            tag = '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">Student &bull; Correct</span>';
+                        } else if (isStudentChoice && !isTheCorrect) {
+                            optClasses += 'bg-rose-50 border-rose-300 text-rose-900 font-semibold ring-1 ring-rose-200';
+                            icon = '<i class="fas fa-times-circle text-rose-600 mr-2"></i>';
+                            tag = '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-200 text-rose-900">Student Choice</span>';
+                        } else if (isTheCorrect) {
+                            optClasses += 'bg-emerald-50/50 border-emerald-300 text-emerald-800 font-medium border-dashed';
+                            icon = '<i class="fas fa-check text-emerald-500 mr-2"></i>';
+                            tag = '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Correct Answer</span>';
+                        } else {
+                            optClasses += 'bg-white border-slate-200 text-slate-700';
+                            icon = '<i class="far fa-circle text-slate-300 mr-2"></i>';
+                        }
+
+                        contentHtml += `<div class="${optClasses}"><span>${icon}${label}</span>${tag}</div>`;
+                    });
+                    contentHtml += '</div>';
+
+                } else if (isEnum) {
+                    const matches = calculateAutoGrade(q, rawStudentAns);
+                    statusBadge = `<span class="px-2.5 py-1 text-xs font-bold rounded-full ${matches === pts ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : (matches > 0 ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-rose-100 text-rose-800 border border-rose-200')}">${matches} / ${pts} pts</span>`;
+
+                    let userAnswers = Array.isArray(rawStudentAns) ? rawStudentAns : (rawStudentAns ? [rawStudentAns] : []);
+                    let correctAnswers = q.answers || [];
+
+                    contentHtml += `
+                    <div class="mb-3 p-3 rounded-lg border bg-white grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div class="space-y-1.5">
+                            <span class="font-bold uppercase tracking-wider text-slate-500 block text-[10px]">Student's Submitted Items:</span>
+                    `;
+
+                    if (userAnswers.length === 0) {
+                        contentHtml += '<div class="p-2 bg-slate-50 border rounded text-slate-400 italic">No items submitted</div>';
+                    } else {
+                        userAnswers.forEach((u, uIdx) => {
+                            const trimmedU = normStr(u);
+                            const isMatch = correctAnswers.some(c => normStr(c) === trimmedU && trimmedU !== '');
+                            contentHtml += `
+                            <div class="p-2 rounded border flex items-center justify-between ${isMatch ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-medium' : 'bg-rose-50 border-rose-200 text-rose-900'}">
+                                <span>Item ${uIdx + 1}: <strong>${escapeHtml(u || '(Blank)')}</strong></span>
+                                <span class="text-[10px] font-bold ${isMatch ? 'text-emerald-700' : 'text-rose-700'}">${isMatch ? '<i class="fas fa-check mr-1"></i>Matched' : '<i class="fas fa-times mr-1"></i>No Match'}</span>
+                            </div>
+                            `;
+                        });
+                    }
+
+                    contentHtml += `
+                        </div>
+                        <div class="space-y-1.5">
+                            <span class="font-bold uppercase tracking-wider text-emerald-700 block text-[10px]">Expected Correct Answers:</span>
+                            <div class="p-2 bg-emerald-50/50 border border-emerald-200 rounded text-emerald-800 space-y-1">
+                                ${correctAnswers.map((c, cIdx) => `<div class="text-xs flex items-center gap-1.5"><i class="fas fa-check text-emerald-500 text-[10px]"></i><span>${escapeHtml(c)}</span></div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    `;
+
+                } else if (isEssay) {
                     const currentScore = (sAns && typeof sAns === 'object' && sAns.manual_score !== undefined) ? sAns.manual_score : 0;
-                    
-                    html += `
-                    <div class="flex items-center justify-end border-t pt-3 mt-3">
-                        <span class="text-sm font-bold text-slate-700 mr-3">Manual Score:</span>
-                        <input type="number" min="0" max="${pts}" class="manual-score-input border border-slate-300 rounded px-2 py-1 w-20 text-center outline-none focus:border-blue-500" value="${currentScore}" data-idx="${idx}">
-                        <span class="text-sm text-slate-500 ml-2">/ ${pts} Points</span>
+                    statusBadge = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200"><i class="fas fa-feather-alt mr-1"></i>Manual Grade (${pts} pts max)</span>`;
+
+                    const studentText = typeof rawStudentAns === 'string' ? rawStudentAns.trim() : '';
+
+                    contentHtml += `
+                    <div class="mb-3 text-sm text-slate-700">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <strong class="text-xs uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                                <i class="fas fa-pen-nib text-blue-600"></i> Student Written Essay:
+                            </strong>
+                            <span class="text-xs text-slate-400">${studentText ? studentText.split(/\s+/).filter(Boolean).length + ' words' : '0 words'}</span>
+                        </div>
+                        <div class="p-3.5 bg-white border border-slate-300 rounded-lg min-h-[70px] whitespace-pre-wrap leading-relaxed shadow-2xs">
+                            ${studentText ? escapeHtml(studentText) : '<i class="text-slate-400">No essay submitted by student.</i>'}
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-slate-200 pt-3 mt-3 bg-slate-100/70 p-3 rounded-lg">
+                        <span class="text-xs font-medium text-slate-600"><i class="fas fa-award text-amber-500 mr-1.5"></i>Assign essay score (saved when clicking "Save Official Scores"):</span>
+                        <div class="flex items-center">
+                            <span class="text-sm font-bold text-slate-700 mr-2">Manual Score:</span>
+                            <input type="number" min="0" max="${pts}" class="manual-score-input border border-slate-300 rounded-lg px-2.5 py-1 w-20 text-center font-bold text-slate-800 bg-white shadow-2xs outline-none focus:ring-2 focus:ring-blue-500" value="${currentScore}" data-idx="${idx}">
+                            <span class="text-sm text-slate-500 ml-2 font-semibold">/ ${pts} pts</span>
+                        </div>
                     </div>
                     `;
-                } else {
-                    html += `<div class="text-xs text-slate-500 text-right mt-2">Auto-graded (Max ${pts} pt)</div>`;
                 }
-                
-                html += `</div>`;
+
+                html += `
+                <div class="border rounded-xl p-5 bg-slate-50 relative q-review-block shadow-xs" data-idx="${idx}" data-type="${q.type || 'multichoice'}" data-max="${pts}">
+                    <div class="flex items-start justify-between gap-3 mb-3 pb-2.5 border-b border-slate-200/80">
+                        <div class="font-bold text-slate-800 text-sm md:text-base leading-snug">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold mr-2">${idx + 1}</span>
+                            ${escapeHtml(q.question || q.text || '')}
+                        </div>
+                        <div class="shrink-0">
+                            ${statusBadge}
+                        </div>
+                    </div>
+                    ${contentHtml}
+                </div>
+                `;
             });
+
             container.innerHTML = html;
             updateCompScorePreview();
             
@@ -401,28 +658,43 @@ $has_ops = strpos($eval_data, 'ops') !== false;
                     const inp = document.querySelector(`.manual-score-input[data-idx="${idx}"]`);
                     if (inp) earnedPoints += (parseInt(inp.value) || 0);
                 } else {
-                    totalPoints += 1; // Auto-graded usually 1 pt
-                    // Estimate score based on actual comprehension score from DB minus essay portion
-                    // Since it's complex, we'll recalculate exactly like cascading-flow.js did
+                    const pts = q.type === 'enumeration' ? (q.answers?.length || parseInt(q.count) || 1) : 1;
+                    totalPoints += pts;
                     earnedPoints += calculateAutoGrade(q, sAns);
                 }
             });
             
             const pct = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 100;
-            document.getElementById('compAutoScore').innerText = pct.toFixed(1) + '%';
+            const autoScoreEl = document.getElementById('compAutoScore');
+            if (autoScoreEl) {
+                autoScoreEl.innerText = `${earnedPoints} / ${totalPoints} (${pct.toFixed(1)}%)`;
+            }
             return pct;
         }
         
         function calculateAutoGrade(q, sAns) {
             if (sAns === undefined || sAns === null) return 0;
-            if (q.type === 'multichoice' || !q.type) {
-                return parseInt(sAns) === parseInt(q.correct) ? 1 : 0;
+
+            let rawAns = sAns;
+            if (sAns && typeof sAns === 'object' && !Array.isArray(sAns) && sAns.answer !== undefined) {
+                rawAns = sAns.answer;
+            }
+
+            if (q.type === 'multichoice' || (!q.type && q.options) || (q.options && Array.isArray(q.options) && q.options.length > 0)) {
+                const student = resolveStudentChoice(q, rawAns);
+                const correct = resolveCorrectChoice(q);
+                if (!student.hasAnswer || student.chosenIdx === -1 || correct.correctIdx === -1) {
+                    return 0;
+                }
+                return student.chosenIdx === correct.correctIdx ? 1 : 0;
             } else if (q.type === 'truefalse') {
-                return String(sAns) === String(q.correct) ? 1 : 0;
+                const s = normStr(rawAns);
+                const c = normStr(q.correct);
+                if (!s) return 0;
+                return (s === c) ? 1 : 0;
             } else if (q.type === 'enumeration') {
-                // Enumeration is dynamic point value!
                 let matches = 0;
-                let userAnswers = Array.isArray(sAns) ? sAns : [sAns];
+                let userAnswers = Array.isArray(rawAns) ? rawAns : [rawAns];
                 let correctAnswers = q.answers || [];
                 let anyOrder = q.anyOrder !== undefined ? q.anyOrder : true;
                 let caseSensitive = q.caseSensitive || false;
@@ -431,22 +703,22 @@ $has_ops = strpos($eval_data, 'ops') !== false;
                     let matchedIndexes = new Set();
                     userAnswers.forEach(uAns => {
                         if (!uAns) return;
-                        let u = caseSensitive ? uAns : uAns.toString().toLowerCase();
+                        let u = caseSensitive ? String(uAns).trim() : normStr(uAns);
                         for (let i = 0; i < correctAnswers.length; i++) {
                             if (matchedIndexes.has(i)) continue;
-                            let c = caseSensitive ? correctAnswers[i].trim() : correctAnswers[i].trim().toLowerCase();
+                            let c = caseSensitive ? String(correctAnswers[i]).trim() : normStr(correctAnswers[i]);
                             if (u === c && c !== "") { matches++; matchedIndexes.add(i); break; }
                         }
                     });
                 } else {
                     for (let i = 0; i < correctAnswers.length; i++) {
                         if (i >= userAnswers.length) break;
-                        let u = caseSensitive ? userAnswers[i] : userAnswers[i].toString().toLowerCase();
-                        let c = caseSensitive ? correctAnswers[i].trim() : correctAnswers[i].trim().toLowerCase();
+                        let u = caseSensitive ? String(userAnswers[i]).trim() : normStr(userAnswers[i]);
+                        let c = caseSensitive ? String(correctAnswers[i]).trim() : normStr(correctAnswers[i]);
                         if (u === c && c !== "") matches++;
                     }
                 }
-                return matches; // Each enumeration item is 1 point!
+                return matches;
             }
             return 0;
         }

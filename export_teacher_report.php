@@ -58,6 +58,20 @@ foreach ($all_students as $s) {
             }
         }
     }
+
+    // Enrich with course assessment progress & custom teacher recommendations
+    $courseSummary = get_student_course_progress_summary($pdo, $s['id']);
+    $s['course_summary'] = $courseSummary;
+
+    $profRank = ['non-reader' => 0, 'frustration' => 1, 'instructional' => 2, 'independent' => 3];
+    if ($courseSummary['has_tests'] && !empty($courseSummary['latest_profile']) && $courseSummary['latest_profile'] !== 'Pending') {
+        $courseProf = $courseSummary['latest_profile'];
+        $courseRank = $profRank[strtolower(trim($courseProf))] ?? 1;
+        $baselineRank = $profRank[strtolower(trim($final_status))] ?? -1;
+        if ($courseSummary['post'] || $courseRank > $baselineRank || $final_status === 'Pending') {
+            $final_status = ucfirst(strtolower(trim($courseProf)));
+        }
+    }
     
     $clean_section = preg_replace('/^Grade\s+\d+\s+/i', '', $s['section']);
     $student_grade = trim($s['grade_level']);
@@ -73,15 +87,27 @@ foreach ($all_students as $s) {
         continue;
     }
 
-    $remarks = 'Awaiting Assessment / GST';
-    if ($final_status === 'Independent') {
-        $remarks = 'Mastery / Grade-Ready (Exempt or Passed)';
-    } elseif ($final_status === 'Instructional') {
-        $remarks = 'Recommended for Guided Reading Practice';
-    } elseif ($final_status === 'Frustration') {
-        $remarks = 'Requires Targeted Reading Support';
-    } elseif ($final_status === 'Non-Reader') {
-        $remarks = 'Urgent: Individual Reading Intervention';
+    // Status Remarks
+    if (!empty($courseSummary['has_custom_rec']) && !empty($courseSummary['condition_tag'])) {
+        $remarks = 'Teacher Note: ' . $courseSummary['condition_tag'];
+    } elseif (!empty($courseSummary['has_custom_rec']) && !empty($courseSummary['recommendation_text'])) {
+        $remarks = 'Teacher Recommendation Applied';
+    } elseif (!empty($courseSummary['post'])) {
+        $remarks = $courseSummary['outcome'] . ' (' . $final_status . ') - Post-Test Completed';
+    } elseif (!empty($courseSummary['pre'])) {
+        $remarks = 'Course Pre-Test Completed (In Progress)';
+    } else {
+        if ($final_status === 'Independent') {
+            $remarks = 'Mastery / Grade-Ready (Exempt or Passed)';
+        } elseif ($final_status === 'Instructional') {
+            $remarks = 'Recommended for Guided Reading Practice';
+        } elseif ($final_status === 'Frustration') {
+            $remarks = 'Requires Targeted Reading Support';
+        } elseif ($final_status === 'Non-Reader') {
+            $remarks = 'Urgent: Individual Reading Intervention';
+        } else {
+            $remarks = 'Awaiting Assessment / GST';
+        }
     }
 
     $s['computed_profile'] = $final_status;
